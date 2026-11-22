@@ -344,7 +344,7 @@ HTML = """
 <header>
   <div>
     <div class="logo">NBA <span>Data</span> Explorer</div>
-    <div class="subtitle">Basketball Reference · 4 Core Metrics</div>
+    <div class="subtitle">ESPN game box scores · Reported absences</div>
   </div>
 </header>
 
@@ -418,14 +418,14 @@ HTML = """
         <option value="5">5 games</option>
         <option value="10" selected>10 games</option>
         <option value="20">20 games</option>
-        <option value="82">Full season (82)</option>
+        <option value="100">All completed games</option>
       </select>
     </div>
 
     <div class="field field-gameid" id="field-gameid">
       <label>Game ID</label>
-      <input type="text" id="game_id" placeholder="e.g. 202412250LAL">
-      <div class="hint">Format: YYYYMMDD0HOMETEAM</div>
+      <input type="text" id="game_id" placeholder="e.g. 401704628">
+      <div class="hint">Numeric ESPN game ID from its box-score URL</div>
     </div>
 
     <button class="run-btn" id="runBtn" onclick="runQuery()">RUN QUERY</button>
@@ -435,7 +435,7 @@ HTML = """
       <div class="legend-item"><span class="legend-num">1</span> Reported absence categories</div>
       <div class="legend-item"><span class="legend-num">2</span> Minutes played per game</div>
       <div class="legend-item"><span class="legend-num">3</span> Players who entered game</div>
-      <div class="legend-item"><span class="legend-num">4</span> Roster size (eligible)</div>
+      <div class="legend-item"><span class="legend-num">4</span> Players listed in selected games</div>
     </div>
   </aside>
 
@@ -476,7 +476,7 @@ async function runQuery() {
   out.innerHTML = `
     <div class="status-bar">
       <div class="dot running" id="statusDot"></div>
-      <span id="statusText">Connecting to Basketball Reference...</span>
+      <span id="statusText">Connecting to ESPN...</span>
     </div>
     <div class="raw-output" id="liveLog">Starting...</div>`;
 
@@ -514,7 +514,7 @@ function escapeHtml(value) {
 function renderResults(data, team, season) {
   const out = document.getElementById('outputArea');
   if (data.mode === 'roster') {
-    out.innerHTML = `<h3>Season roster: ${data.roster_count} players</h3><p>This is the season roster, not game-day availability.</p><pre>${escapeHtml(data.output)}</pre>`;
+    out.innerHTML = `<h3>Players listed in ${data.collected_games} collected game(s): ${data.roster_count}</h3><p>Players listed in source box scores for the selected games; not a complete season roster or game-day eligibility list.</p>${(data.warnings || []).map(w=>`<p role="alert">${escapeHtml(w)}</p>`).join('')}<pre>${escapeHtml(data.output)}</pre>`;
     return;
   }
   const games = data.mode === 'game' ? [{...data.metrics, game_id:data.game_id}] : data.games;
@@ -523,7 +523,7 @@ function renderResults(data, team, season) {
   const cards = categories.map(c => `<div class="metric-card"><div class="metric-label">${c.toUpperCase()}</div><div class="metric-value">${totals[c]}</div><div class="metric-sub">reported player-game absences</div></div>`).join('');
   const rows = games.map(g => `<tr><td>${escapeHtml(g.date || g.game_id)}</td><td>${escapeHtml(g.opp || team)}</td>${categories.map(c=>`<td>${g.absence_counts[c]}</td>`).join('')}<td>${g.players_dnp}</td><td>${g.players_entered}</td><td>${g.minutes_played}</td><td>${g.overtime_periods}</td></tr>`).join('');
   const details = games.map(g => `<details><summary>${escapeHtml(g.date || g.game_id)} — player absence reasons</summary><p><a href="${escapeHtml(g.source_url)}" target="_blank" rel="noopener">Source box score</a></p><table><thead><tr><th>Player</th><th>Category</th><th>Reported reason</th></tr></thead><tbody>${g.players.filter(p=>!p.played).map(p=>`<tr><td>${escapeHtml(p.player)}</td><td>${escapeHtml(p.absence_category)}</td><td>${escapeHtml(p.reported_absence_reason || 'Not reported')}</td></tr>`).join('') || '<tr><td colspan="3">No nonparticipants listed in source.</td></tr>'}</tbody></table></details>`).join('');
-  out.innerHTML = `<p>${games.length} completed game(s) collected${data.requested_games ? ' of '+data.requested_games+' requested' : ''}.</p><div class="results-grid">${cards}</div><p>Categories describe source-reported absences, not new injury events or diagnoses. Generic DNP, missing reasons, and ambiguous reasons remain unknown. Unlisted players are not inferred. Repeated absences count once per player per game.</p>${(data.warnings || []).map(w=>`<p role="alert">Collection warning: ${escapeHtml(w)}</p>`).join('')}<div class="game-table-wrap"><table><thead><tr><th>Date / Game</th><th>Team / Opp</th><th>Injury</th><th>Illness</th><th>Other</th><th>Unknown</th><th>Total absent</th><th>Entered</th><th>Minutes</th><th>OT</th></tr></thead><tbody>${rows}</tbody></table></div>${details}`;
+  out.innerHTML = `<p>${games.length} completed game(s) collected${data.requested_games ? ' of '+data.requested_games+' requested' : ''}.</p><div class="results-grid">${cards}</div><p>Categories describe source-reported absences, not new injury events or diagnoses. Generic DNP, missing reasons, and ambiguous reasons remain unknown. Unlisted players are not inferred. Repeated absences count once per player per game. Dates use the venue time zone where known. Team minutes use five players × period lengths, avoiding rounded player-minute totals.</p>${(data.warnings || []).map(w=>`<p role="alert">Collection warning: ${escapeHtml(w)}</p>`).join('')}<div class="game-table-wrap"><table><thead><tr><th>Date / Game</th><th>Team / Opp</th><th>Injury</th><th>Illness</th><th>Other</th><th>Unknown</th><th>Total absent</th><th>Entered</th><th>Team minutes*</th><th>OT</th></tr></thead><tbody>${rows}</tbody></table></div>${details}`;
 }
 </script>
 </body>
@@ -537,7 +537,7 @@ def index():
 
 @app.route("/run", methods=["POST"])
 def run():
-    from lakers_test import collect_dashboard
+    from nba_espn_collector import collect_dashboard
     payload = request.get_json(silent=True) or {}
     try:
         result = collect_dashboard(payload.get('mode', 'team'),

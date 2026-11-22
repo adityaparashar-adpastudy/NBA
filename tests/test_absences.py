@@ -31,13 +31,13 @@ class AbsenceTests(unittest.TestCase):
         soup=BeautifulSoup('<!--'+str(fixture().table)+'-->','lxml')
         self.assertEqual(parse_boxscore(soup,'202410220LAL','LAL')['players_dnp'],7)
     def test_route_returns_player_records(self):
-        with patch('lakers_test.get_soup',return_value=fixture()):
+        with patch('nba_espn_collector.collect_dashboard',return_value=dict(mode='game', metrics=parse_boxscore(fixture(),'202410220LAL','LAL'), output='')):
             response=app.test_client().post('/run',json=dict(mode='game',team='LAL',game_id='202410220LAL'))
         self.assertEqual(response.status_code,200)
         self.assertEqual(response.json['metrics']['absence_counts']['injury'],1)
         self.assertEqual(len(response.json['metrics']['players']),8)
     def test_source_failure_not_zero(self):
-        with patch('lakers_test.get_soup',side_effect=RuntimeError('source failed')):
+        with patch('nba_espn_collector.collect_dashboard',side_effect=RuntimeError('source failed')):
             response=app.test_client().post('/run',json=dict(mode='game',team='LAL',game_id='202410220LAL'))
         self.assertEqual(response.status_code,502)
         self.assertFalse(response.json['ok'])
