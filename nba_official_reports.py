@@ -12,7 +12,7 @@ from lakers_test import classify_absence
 
 ET = ZoneInfo('America/New_York')
 TEAM_CODES = {'Atlanta Hawks':'ATL','Boston Celtics':'BOS','Brooklyn Nets':'BKN','Charlotte Hornets':'CHA','Chicago Bulls':'CHI','Cleveland Cavaliers':'CLE','Dallas Mavericks':'DAL','Denver Nuggets':'DEN','Detroit Pistons':'DET','Golden State Warriors':'GS','Houston Rockets':'HOU','Indiana Pacers':'IND','LA Clippers':'LAC','Los Angeles Clippers':'LAC','Los Angeles Lakers':'LAL','Memphis Grizzlies':'MEM','Miami Heat':'MIA','Milwaukee Bucks':'MIL','Minnesota Timberwolves':'MIN','New Orleans Pelicans':'NO','New York Knicks':'NY','Oklahoma City Thunder':'OKC','Orlando Magic':'ORL','Philadelphia 76ers':'PHI','Phoenix Suns':'PHX','Portland Trail Blazers':'POR','Sacramento Kings':'SAC','San Antonio Spurs':'SA','Toronto Raptors':'TOR','Utah Jazz':'UTAH','Washington Wizards':'WSH'}
-REASON_PREFIX = re.compile(r'^(Injury\s*/\s*Illness|Concussion\s+Protocol|G\s+League|Return\s+to\s+Competition|Not\s+With\s+Team|Personal|Rest|Suspension|League\s+Suspension|Other)', re.I)
+REASON_PREFIX = re.compile(r'^(Injury\s*/\s*Illness|Concussion\s+Protocol|G\s+League|Return\s+to\s+Competition|Not\s+With\s+Team|Personal|Rest|Suspension|League\s+Suspension|Team\s+Suspension|Coach[’\']?s?\s+Decision|Other)', re.I)
 STATUSES = {'Out','Questionable','Doubtful','Probable','Available'}
 
 def clean(text):
@@ -75,16 +75,48 @@ def parse_report(content, source_url):
             fields={k:clean(' '.join(v)) for k,v in fields.items()}
             position=page_no*10000+y
             if fields['status'] in STATUSES or fields['reason']=='NOT YET SUBMITTED':
-                page_anchors.append(dict(position=position,**fields))
+                page_anchors.append(dict(position=position,page=page_no,y=y,height=float(page.mediabox.height),**fields))
             if fields['reason'] and fields['reason']!='NOT YET SUBMITTED':
-                reason_lines.append(dict(position=position,text=fields['reason']))
+                reason_lines.append(dict(position=position,page=page_no,y=y,text=fields['reason']))
         anchors.extend(page_anchors)
     actual=[a for a in anchors if a['status'] in STATUSES]
-    starts=[line for line in reason_lines if REASON_PREFIX.match(line['text'])
-            or (line['text']=='-' and any(abs(a['position']-line['position'])<=2 for a in actual))]
-    # Fail closed if a report layout cannot be reconciled. Never silently drop a player.
-    if len(actual)!=len(starts):
-        raise ValueError(f'NBA report rows do not reconcile ({len(actual)} players, {len(starts)} reasons)')
+    # Group physically contiguous reason baselines first. Reason cells are
+    # vertically centred against the player/status row, including wrapped cells
+    # that begin above that row. A repeated phrase such as Concussion Protocol
+    # is therefore never mistaken for a new player's reason.
+    blocks=[]
+    for line in reason_lines:
+        if blocks and blocks[-1]['page']==line['page'] and line['y']-blocks[-1]['bottom']<=16:
+            blocks[-1]['lines'].append(line['text']);blocks[-1]['bottom']=line['y']
+        else:
+            blocks.append(dict(page=line['page'],top=line['y'],bottom=line['y'],lines=[line['text']]))
+    assigned={id(a):[] for a in actual}
+    for block in blocks:
+        candidates=[a for a in actual if a['page']==block['page']]
+        center=(block['top']+block['bottom'])/2
+        distances=sorted(((abs(a['y']-center),i,a) for i,a in enumerate(candidates)),key=lambda item:item[:2])
+        target=None
+        if distances and distances[0][0]<=10 and (len(distances)==1 or distances[1][0]-distances[0][0]>2):
+            target=distances[0][2]
+        else:
+            # The PDF can continue a reason at the top of the next page while
+            # its player/status remains at the bottom of the previous page.
+            previous=[a for a in actual if a['page']==block['page']-1]
+            text=clean(' '.join(block['lines']))
+            if (previous and block['top']<=105 and
+                previous[-1]['y']>=previous[-1]['height']-110 and
+                not REASON_PREFIX.match(text) and text!='-' and
+                assigned[id(previous[-1])]):
+                target=previous[-1]
+        if target is None:
+            raise ValueError('NBA report rows do not reconcile: reason has no unique positional row')
+        if assigned[id(target)] and target['page']==block['page']:
+            raise ValueError('NBA report rows do not reconcile: multiple reason blocks for one row')
+        assigned[id(target)].extend(block['lines'])
+    for a in actual:
+        a['resolved_reason']=clean(' '.join(assigned[id(a)]))
+        if not a['resolved_reason'] or not (REASON_PREFIX.match(a['resolved_reason']) or a['resolved_reason']=='-'):
+            raise ValueError('NBA report rows do not reconcile: missing or unrecognized reason')
     records=[];not_submitted=[];matchups=set();current_date=current_matchup=current_team=''
     for a in anchors:
         if a['date']:current_date=datetime.strptime(a['date'],'%m/%d/%Y').date().isoformat()
@@ -95,8 +127,7 @@ def parse_report(content, source_url):
         matchups.add((current_date,current_matchup))
         if a['reason']=='NOT YET SUBMITTED':
             not_submitted.append((current_date,current_matchup,TEAM_CODES[current_team]));continue
-        index=len(records);start=starts[index]['position'];end=starts[index+1]['position'] if index+1<len(starts) else float('inf')
-        reason=clean(' '.join(line['text'] for line in reason_lines if start<=line['position']<end))
+        reason=a['resolved_reason']
         if ',' not in a['name']:raise ValueError('NBA report player name is incomplete')
         last,first=a['name'].split(',',1)
         full_name=clean(first+' '+last)

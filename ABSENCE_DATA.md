@@ -6,7 +6,7 @@ For Render, the build command is `pip install -r requirements.txt`. The start co
 
 ## Separate evidence sources
 
-`nba_official_reports.py` retrieves official NBA pregame injury-report PDFs. The parser preserves source player names, game date, matchup, team, report timestamp (Eastern time), status, reason and PDF URL. It supports the older and current layouts checked during development. Player and reason rows must reconcile; unrecognized layouts fail closed. A report marked NOT YET SUBMITTED is unavailable for that team. Reports after tipoff, stale reports and wrong matchups are rejected.
+`nba_official_reports.py` retrieves official NBA pregame injury-report PDFs. The parser preserves source player names, game date, matchup, team, report timestamp (Eastern time), status, reason and PDF URL. It supports the older and current layouts checked during development. Reason baselines are grouped into physical blocks and matched to the unique player/status row by page position, including wrapped blocks that start above a name. A leading continuation can attach to the final row on the previous page only under strict page-edge checks. Prefix wording is validated after association and never determines player order. Ambiguous blocks and unrecognized layouts fail closed. A report marked NOT YET SUBMITTED is unavailable for that team. Reports after tipoff, stale reports and wrong matchups are rejected.
 
 The collector tries a bounded set of observed PDF filename formats and pregame times, with a per-game retrieval time budget. It selects an available submitted pregame snapshot, which is not necessarily the last report before tipoff. Later changes and sources outside these snapshots are not collected. The UI displays available snapshots / loaded games, and unavailable games never contribute an invented zero injury count. Even a complete game schedule is not proof of complete injury coverage. Historical season selection does not guarantee historical report availability.
 
@@ -46,3 +46,37 @@ A separate retained-source replay verified all 82 regular-season games for each 
 ## Supplied legacy folder
 
 Only ATL_game_metrics_2025.csv and PHO_game_metrics_2025.csv were found as saved data in the supplied Downloads/NBA folder. Their injury-labeled counts derive from generic Did Not Play records without injury-specific reasons. The Pro Sports Transactions scraper had no saved output and its source returned 403 during inspection. Those totals are not used as authoritative injury evidence. Legacy dashboard scripts are retained unchanged; deploy `nba_dashboard:app`.
+
+
+## Validation follow-up on 22 November 2026
+
+Fixed all ten supplied reason mismatches using four retained official PDF fixtures.
+The regression cases include repeated Concussion Protocol wording, Team Suspension,
+wrapped reasons starting above a player name, and a reason continued onto the next page.
+A broader replay downloaded all 68 distinct official report URLs retained from prior
+workspace checks and the new samples, parsing 7,970 rows. A separate audit using
+pdfplumber words and drawn table-cell borders matched all 7,970 reasons. This is a
+bounded retained-source replay, not a review of the entire NBA historical archive.
+The supplied validation folder did not contain its claimed 829 PDFs or raw 18-season
+query results, so that larger corpus could not be reproduced directly.
+
+The shared classifier now recognizes sciatic/nerve, patellofemoral, plantar, tendon,
+retrocalcaneal, corneal and eye wording, plus virus/viral as illness. Source umbrella
+prefixes and repeated whitespace are normalized consistently for both ESPN and official
+reasons. Of 113 supplied suggestions, 112 are supported; Right Index Finger; Sprain /
+Illness remains unknown because it explicitly mixes injury and illness. Raw reasons are
+preserved. No injury diagnosis or unique event is inferred from these categories.
+
+ESPN schedule/summary retrieval retries transient connection/timeouts, HTTP 429 and
+server errors up to three total attempts with short backoff. Permanent errors such as
+404 are not retried and exhausted failures are not cached as successes. Partial results
+now expose collected_games, missing_games and missing_game_ids as well as requested_games
+and scheduled_completed_games. Missing counts concern the requested sample, not completed
+games outside a five/ten/twenty-game selection. Season Summary and Player List display the
+missing count explicitly. Missing official snapshots remain a separate visible summary
+count; unavailable coverage never contributes a false zero injury count.
+
+Run the existing Python/CSV checks plus `node tests/test_summary_coverage.cjs` for the
+new summary assertions. Fixtures and sources.json record the four original PDF URLs and
+content hashes. Previously downloaded CSVs remain historical exports; rerun the query
+and download new files after deployment to obtain corrected parsed reasons.

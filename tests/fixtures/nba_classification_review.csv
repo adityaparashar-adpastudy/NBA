@@ -1,0 +1,114 @@
+team_season,date,game_id,team,source,player,reason,dashboard_category,suggested
+BOS_2025,2024-12-01,401704873,BOS,official_report,"Porzingis, Kristaps",Injury/Illness - Left Posterior Tibialis Tendon; Return,unknown,injury
+GSW_2026,2025-11-24,401810146,GS,official_report,"Horford, Al",Injury/Illness - Right Sciatic Nerve; Irritation,unknown,injury
+GSW_2026,2025-11-26,401809808,GS,official_report,"Horford, Al",Injury/Illness - Right Sciatic Nerve; Irritation,unknown,injury
+GSW_2026,2025-11-29,401810153,GS,official_report,"Horford, Al",Injury/Illness - Right Sciatic Nerve; Irritation,unknown,injury
+GSW_2026,2025-12-02,401810178,GS,official_report,"Horford, Al",Injury/Illness - Right Sciatic Nerve; Irritation,unknown,injury
+GSW_2026,2025-12-04,401810188,GS,official_report,"Horford, Al",Injury/Illness - Right Sciatic Nerve; Irritation,unknown,injury
+GSW_2026,2025-12-06,401810207,GS,espn_box_score,Al Horford,SCIATIC NERVE IRRITATION,unknown,injury
+GSW_2026,2025-12-06,401810207,GS,official_report,"Horford, Al",Injury/Illness - Right Sciatic Nerve; Irritation,unknown,injury
+GSW_2026,2025-12-07,401810216,GS,official_report,"Horford, Al",Injury/Illness - Right Sciatic Nerve; Irritation,unknown,injury
+GSW_2026,2025-12-12,401836796,GS,official_report,"Horford, Al",Injury/Illness - Right Sciatic Nerve; Irritation,unknown,injury
+GSW_2026,2025-12-14,401836802,GS,official_report,"Horford, Al",Injury/Illness - Right Sciatic Nerve; Irritation,unknown,injury
+GSW_2026,2025-12-18,401810233,GS,official_report,"Horford, Al",Injury/Illness - Right Sciatic Nerve; Irritation,unknown,injury
+GSW_2026,2025-12-20,401810247,GS,official_report,"Horford, Al",Injury/Illness - Right Sciatic Nerve; Irritation,unknown,injury
+GSW_2026,2025-12-22,401810262,GS,official_report,"Horford, Al",Injury/Illness - Right Sciatic Nerve; Irritation,unknown,injury
+GSW_2026,2025-12-25,401809240,GS,official_report,"Horford, Al",Injury/Illness - Right Sciatic Nerve; Irritation,unknown,injury
+GSW_2026,2025-12-28,401810296,GS,official_report,"Curry, Seth",Injury/Illness - Left Sciatic Nerve; Irritation,unknown,injury
+GSW_2026,2025-12-29,401810304,GS,official_report,"Curry, Seth",Injury/Illness - Left Sciatic Nerve; Irritation,unknown,injury
+GSW_2026,2025-12-31,401810317,GS,official_report,"Curry, Seth",Injury/Illness - Left Sciatic Nerve; Irritation,unknown,injury
+GSW_2026,2026-01-02,401810339,GS,official_report,"Curry, Seth",Injury/Illness - Left Sciatic Nerve; Irritation,unknown,injury
+GSW_2026,2026-01-02,401810339,GS,official_report,"Horford, Al",Injury/Illness - Right Sciatic Nerve; Irritation,unknown,injury
+GSW_2026,2026-01-03,401810347,GS,official_report,"Curry, Seth",Injury/Illness - Left Sciatic Nerve; Irritation,unknown,injury
+GSW_2026,2026-01-03,401810347,GS,official_report,"Richard, Will",Injury/Illness - Left Retrocalcaneal; Impingement,unknown,injury
+GSW_2026,2026-01-05,401810363,GS,official_report,"Curry, Seth",Injury/Illness - Left Sciatic Nerve; Irritation,unknown,injury
+GSW_2026,2026-01-07,401810381,GS,official_report,"Curry, Seth",Injury/Illness - Left Sciatic Nerve; Irritation,unknown,injury
+GSW_2026,2026-01-09,401810394,GS,official_report,"Curry, Seth",Injury/Illness - Left Sciatic Nerve; Irritation,unknown,injury
+GSW_2026,2026-01-11,401810411,GS,official_report,"Curry, Seth",Injury/Illness - Left Sciatic Nerve; Irritation,unknown,injury
+GSW_2026,2026-01-13,401810425,GS,official_report,"Curry, Seth",Injury/Illness - Left Sciatic Nerve; Irritation,unknown,injury
+GSW_2026,2026-01-15,401810439,GS,official_report,"Curry, Seth",Injury/Illness - Left Sciatic Nerve; Irritation,unknown,injury
+GSW_2026,2026-01-17,401810454,GS,official_report,"Curry, Seth",Injury/Illness - Left Sciatic Nerve; Irritation,unknown,injury
+GSW_2026,2026-01-20,401810473,GS,official_report,"Curry, Seth",Injury/Illness - Left Sciatic Nerve; Irritation,unknown,injury
+GSW_2026,2026-01-22,401810485,GS,official_report,"Curry, Seth",Injury/Illness - Left Sciatic Nerve; Irritation,unknown,injury
+GSW_2026,2026-01-25,401857824,GS,official_report,"Curry, Seth",Injury/Illness - Left Sciatic Nerve; Irritation,unknown,injury
+GSW_2026,2026-01-26,401810518,GS,official_report,"Curry, Seth",Injury/Illness - Left Sciatic Nerve; Irritation,unknown,injury
+GSW_2026,2026-01-26,401810518,GS,official_report,"Curry, Stephen",Injury/Illness - Right Patellofemoral; Inflammation,unknown,injury
+GSW_2026,2026-01-28,401810533,GS,official_report,"Curry, Seth",Injury/Illness - Left Sciatic Nerve; Irritation,unknown,injury
+GSW_2026,2026-01-28,401810533,GS,official_report,"Curry, Stephen",Injury/Illness - Right Patellofemoral; Inflammation,unknown,injury
+GSW_2026,2026-01-30,401810551,GS,official_report,"Curry, Seth",Injury/Illness - Left Sciatic Nerve; Irritation,unknown,injury
+GSW_2026,2026-02-03,401810579,GS,official_report,"Curry, Seth",Injury/Illness - Left Sciatic Nerve; Irritation,unknown,injury
+GSW_2026,2026-02-03,401810579,GS,official_report,"Curry, Stephen",Injury/Illness - Right Patellofemoral; Pain Syndrome,unknown,injury
+GSW_2026,2026-02-09,401810623,GS,official_report,"Curry, Seth",Injury/Illness - Left Sciatic Nerve; Irritation,unknown,injury
+GSW_2026,2026-02-09,401810623,GS,official_report,"Curry, Stephen",Injury/Illness - Right Patellofemoral; Pain Syndrome,unknown,injury
+GSW_2026,2026-02-22,401810675,GS,espn_box_score,Seth Curry,SCIATIC NERVE IRRITATION,unknown,injury
+GSW_2026,2026-02-22,401810675,GS,official_report,"Curry, Seth",Injury/Illness - Left Sciatic Nerve; Irritation,unknown,injury
+GSW_2026,2026-02-22,401810675,GS,official_report,"Curry, Stephen",Injury/Illness - Right Patellofemoral; Pain Syndrome,unknown,injury
+GSW_2026,2026-02-24,401810693,GS,official_report,"Curry, Seth",Injury/Illness - Left Sciatic Nerve; Irritation,unknown,injury
+GSW_2026,2026-02-24,401810693,GS,official_report,"Curry, Stephen",Injury/Illness - Right Patellofemoral; Pain Syndrome,unknown,injury
+GSW_2026,2026-02-25,401810699,GS,official_report,"Curry, Seth",Injury/Illness - Left Sciatic Nerve; Irritation,unknown,injury
+GSW_2026,2026-02-25,401810699,GS,official_report,"Curry, Stephen",Injury/Illness - Right Patellofemoral; Pain Syndrome,unknown,injury
+GSW_2026,2026-02-28,401810721,GS,official_report,"Curry, Seth",Injury/Illness - Left Sciatic Nerve; Irritation,unknown,injury
+GSW_2026,2026-02-28,401810721,GS,official_report,"Curry, Stephen",Injury/Illness - Right Patellofemoral; Pain Syndrome,unknown,injury
+GSW_2026,2026-03-02,401810737,GS,official_report,"Curry, Seth",Injury/Illness - Left Sciatic Nerve; Irritation,unknown,injury
+GSW_2026,2026-03-02,401810737,GS,official_report,"Curry, Stephen",Injury/Illness - Right Patellofemoral; Pain Syndrome,unknown,injury
+GSW_2026,2026-03-05,401810757,GS,official_report,"Curry, Seth",Injury/Illness - Left Sciatic Nerve; Irritation,unknown,injury
+GSW_2026,2026-03-05,401810757,GS,official_report,"Curry, Stephen",Injury/Illness - Right Patellofemoral; Pain Syndrome,unknown,injury
+GSW_2026,2026-03-07,401810775,GS,official_report,"Curry, Seth",Injury/Illness - Left Sciatic Nerve; Irritation,unknown,injury
+GSW_2026,2026-03-07,401810775,GS,official_report,"Curry, Stephen",Injury/Illness - Right Patellofemoral; Pain Syndrome,unknown,injury
+GSW_2026,2026-03-09,401810789,GS,official_report,"Curry, Seth",Injury/Illness - Left Sciatic Nerve; Irritation,unknown,injury
+GSW_2026,2026-03-09,401810789,GS,official_report,"Curry, Stephen",Injury/Illness - Right Patellofemoral; Pain Syndrome,unknown,injury
+GSW_2026,2026-03-10,401810798,GS,official_report,"Curry, Stephen",Injury/Illness - Right Patellofemoral; Pain Syndrome,unknown,injury
+GSW_2026,2026-03-15,401810836,GS,official_report,"Curry, Stephen",Injury/Illness - Right Patellofemoral; Pain Syndrome,unknown,injury
+GSW_2026,2026-03-16,401810839,GS,official_report,"Curry, Stephen",Injury/Illness - Right Patellofemoral; Pain Syndrome,unknown,injury
+GSW_2026,2026-03-18,401810854,GS,official_report,"Curry, Stephen",Injury/Illness - Right Patellofemoral; Pain Syndrome,unknown,injury
+GSW_2026,2026-03-20,401810872,GS,official_report,"Curry, Stephen",Injury/Illness - Right Patellofemoral; Pain Syndrome,unknown,injury
+GSW_2026,2026-03-21,401810881,GS,official_report,"Curry, Stephen",Injury/Illness - Right Patellofemoral; Pain Syndrome,unknown,injury
+GSW_2026,2026-03-25,401810915,GS,official_report,"Curry, Stephen",Injury/Illness - Right Patellofemoral; Pain Syndrome,unknown,injury
+GSW_2026,2026-03-25,401810915,GS,official_report,"Moody, Moses",Injury/Illness - Left Patellar Tendon; Rupture,unknown,injury
+GSW_2026,2026-03-27,401810928,GS,official_report,"Curry, Stephen",Injury/Illness - Right Patellofemoral; Pain Syndrome,unknown,injury
+GSW_2026,2026-03-27,401810928,GS,official_report,"Moody, Moses",Injury/Illness - Left Patellar Tendon; Rupture,unknown,injury
+GSW_2026,2026-03-29,401810945,GS,official_report,"Curry, Stephen",Injury/Illness - Right Patellofemoral; Pain Syndrome,unknown,injury
+GSW_2026,2026-04-01,401810968,GS,official_report,"Curry, Stephen",Injury/Illness - Right Patellofemoral; Pain Syndrome,unknown,injury
+GSW_2026,2026-04-02,401810972,GS,official_report,"Curry, Stephen",Injury/Illness - Right Patellofemoral; Pain Syndrome,unknown,injury
+GSW_2026,2026-04-05,401810997,GS,official_report,"Curry, Stephen",Injury/Illness - Right Patellofemoral; Pain Syndrome,unknown,injury
+GSW_2026,2026-04-07,401811009,GS,official_report,"Curry, Stephen",Injury/Illness - Right Patellofemoral; Pain Syndrome,unknown,injury
+LAL_2024,2024-03-18,401585618,LAL,official_report,"Davis, Anthony",Injury/Illness - Left Corneal; Abrasion,unknown,injury
+LAL_2025,2024-11-08,401704761,LAL,official_report,"Davis, Anthony",Injury/Illness - Left Plantar; Fasciitis,unknown,injury
+LAL_2025,2024-11-10,401704777,LAL,official_report,"Davis, Anthony",Injury/Illness - Left Plantar; Fasciitis,unknown,injury
+LAL_2025,2024-11-13,401704791,LAL,official_report,"Davis, Anthony",Injury/Illness - Left Plantar; Fasciitis,unknown,injury
+LAL_2025,2024-11-15,401703384,LAL,official_report,"Davis, Anthony",Injury/Illness - Left Plantar; Fasciitis,unknown,injury
+LAL_2025,2024-11-16,401704797,LAL,official_report,"Davis, Anthony",Injury/Illness - Left Plantar; Fasciitis,unknown,injury
+LAL_2025,2024-11-19,401703395,LAL,official_report,"Davis, Anthony",Injury/Illness - Left Plantar; Fasciitis,unknown,injury
+LAL_2025,2024-11-21,401704829,LAL,official_report,"Davis, Anthony",Injury/Illness - Left Plantar; Fasciitis,unknown,injury
+LAL_2025,2024-11-23,401704836,LAL,official_report,"Davis, Anthony",Injury/Illness - Left Plantar; Fasciitis,unknown,injury
+LAL_2025,2024-11-26,401703408,LAL,official_report,"Davis, Anthony",Injury/Illness - Left Plantar; Fasciitis,unknown,injury
+LAL_2025,2024-11-27,401704862,LAL,official_report,"Davis, Anthony",Injury/Illness - Left Plantar; Fasciitis,unknown,injury
+LAL_2025,2024-11-29,401703417,LAL,official_report,"Davis, Anthony",Injury/Illness - Left Plantar; Fasciitis,unknown,injury
+LAL_2025,2024-12-01,401704877,LAL,official_report,"Davis, Anthony",Injury/Illness - Left Plantar; Fasciitis,unknown,injury
+LAL_2025,2024-12-02,401704884,LAL,official_report,"Davis, Anthony",Injury/Illness - Left Plantar; Fasciitis,unknown,injury
+LAL_2025,2024-12-04,401704887,LAL,official_report,"Davis, Anthony",Injury/Illness - Left Plantar; Fasciitis,unknown,injury
+LAL_2025,2024-12-06,401704900,LAL,official_report,"Davis, Anthony",Injury/Illness - Left Plantar; Fasciitis,unknown,injury
+LAL_2025,2024-12-08,401704924,LAL,official_report,"Davis, Anthony",Injury/Illness - Left Plantar; Fasciitis,unknown,injury
+LAL_2025,2024-12-13,401736804,LAL,official_report,"Davis, Anthony",Injury/Illness - Left Plantar; Fasciitis,unknown,injury
+LAL_2025,2024-12-19,401704938,LAL,official_report,"Davis, Anthony",Injury/Illness - Left Plantar; Fasciitis,unknown,injury
+LAL_2025,2025-01-17,401705151,LAL,official_report,"Davis, Anthony",Injury/Illness - Left Plantar; Fasciitis,unknown,injury
+LAL_2025,2025-01-27,401705214,LAL,official_report,"Davis, Anthony",Injury/Illness - Left Plantar; Fasciitis,unknown,injury
+LAL_2025,2025-01-28,401705226,LAL,official_report,"Davis, Anthony",Injury/Illness - Left Plantar; Fasciitis,unknown,injury
+LAL_2025,2025-04-13,401705765,LAL,official_report,"Goodwin, Jordan",Injury/Illness - Right Plantar; Fasciitis,unknown,injury
+LAL_2026,2025-10-21,401809244,LAL,official_report,"James, LeBron",Injury/Illness - Right Sciatica; -,unknown,injury
+LAL_2026,2025-10-24,401809951,LAL,official_report,"James, LeBron",Injury/Illness - Right Sciatica; -,unknown,injury
+LAL_2026,2025-10-26,401809968,LAL,official_report,"James, LeBron",Injury/Illness - Right Sciatica; -,unknown,injury
+LAL_2026,2025-10-27,401809977,LAL,official_report,"James, LeBron",Injury/Illness - Right Sciatica; -,unknown,injury
+LAL_2026,2025-10-29,401809991,LAL,official_report,"James, LeBron",Injury/Illness - Right Sciatica; -,unknown,injury
+LAL_2026,2025-10-31,401809506,LAL,official_report,"James, LeBron",Injury/Illness - Right Sciatica; -,unknown,injury
+LAL_2026,2025-11-03,401810018,LAL,official_report,"James, LeBron",Injury/Illness - Right Sciatica; -,unknown,injury
+LAL_2026,2025-11-05,401810034,LAL,official_report,"James, LeBron",Injury/Illness - Right Sciatica; -,unknown,injury
+LAL_2026,2025-11-08,401810040,LAL,official_report,"James, LeBron",Injury/Illness - Right Sciatica; -,unknown,injury
+LAL_2026,2025-11-10,401810053,LAL,official_report,"James, LeBron",Injury/Illness - Right Sciatica; -,unknown,injury
+LAL_2026,2025-11-12,401810077,LAL,official_report,"James, LeBron",Injury/Illness - Right Sciatica; -,unknown,injury
+LAL_2026,2025-11-14,401809787,LAL,official_report,"James, LeBron",Injury/Illness - Right Sciatica; -,unknown,injury
+LAL_2026,2025-11-15,401810086,LAL,espn_box_score,Marcus Smart,VIRUS,unknown,illness
+LAL_2026,2025-11-15,401810086,LAL,official_report,"James, LeBron",Injury/Illness - Right Sciatica; -,unknown,injury
+LAL_2026,2025-11-18,401810108,LAL,official_report,"James, LeBron",Injury/Illness - Right Sciatica; -,unknown,injury
+OKC_2026,2026-02-03,401810578,OKC,official_report,"Gilgeous- Alexander, Shai",Injury/Illness - Right Index Finger; Sprain / Illness,unknown,injury
+OKC_2026,2026-02-04,401810585,OKC,espn_box_score,Isaiah Hartenstein,CORNEAL ABRASION,unknown,injury

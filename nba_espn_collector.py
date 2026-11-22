@@ -2,7 +2,7 @@
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from functools import lru_cache
-from time import monotonic
+from time import monotonic, sleep
 from zoneinfo import ZoneInfo
 import re
 import requests
@@ -23,8 +23,19 @@ def normalize(team):
 
 @lru_cache(maxsize=256)
 def _fetch(path, bucket):
-    response = requests.get(BASE + path, timeout=(5, 20))
-    response.raise_for_status()
+    # Retry transient transport and upstream throttling/server errors only.
+    # Failed calls never enter the successful-response cache.
+    for attempt in range(3):
+        try:
+            response = requests.get(BASE + path, timeout=(5, 20))
+            response.raise_for_status()
+            break
+        except (requests.ConnectionError, requests.Timeout, requests.HTTPError) as exc:
+            status = exc.response.status_code if exc.response is not None else None
+            transient = isinstance(exc, (requests.ConnectionError, requests.Timeout)) or status == 429 or (status is not None and status >= 500)
+            if not transient or attempt == 2:
+                raise
+            sleep(.5 * (2 ** attempt))
     data = response.json()
     if path.startswith('summary?'):
         # Retain only box-score data used by the app, not news or play-by-play.
@@ -176,7 +187,8 @@ def collect_dashboard(mode, team, season, max_games=10, game_id=''):
         raise ValueError('Choose a whole number of games between 1 and 100')
     limit=int(max_games)
     if not 1<=limit<=100: raise ValueError('Choose between 1 and 100 games')
-    events = schedule(team,season)[:limit]
+    completed_events = schedule(team,season)
+    events = completed_events[:limit]
     if not events: raise ValueError('No completed regular-season games available for this season')
     def load(event):
         try: return game(event['id'],team),None
@@ -186,8 +198,10 @@ def collect_dashboard(mode, team, season, max_games=10, game_id=''):
     games=[g for g,w in results if g is not None]
     warnings=[w for g,w in results if w] + participation_warnings(games)
     if not games: raise ValueError('No box scores could be collected. Source data is unavailable, not zero absences.')
+    missing_ids=[event['id'] for event,(result,warning) in zip(events,results) if result is None]
+    coverage=dict(scheduled_completed_games=len(completed_events),requested_games=len(events),collected_games=len(games),missing_games=len(missing_ids),missing_game_ids=missing_ids)
     if mode=='roster':
         players={p['player_id']:p['player'] for g in games for p in g['players']}
         return dict(mode=mode,roster_count=len(players),output='\n'.join(sorted(players.values())),
-                    warnings=warnings,collected_games=len(games),requested_games=len(events))
-    return dict(mode=mode,games=games,warnings=warnings,requested_games=len(events),output='')
+                    warnings=warnings,**coverage)
+    return dict(mode=mode,games=games,warnings=warnings,output='',**coverage)
