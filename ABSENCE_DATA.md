@@ -80,3 +80,23 @@ Run the existing Python/CSV checks plus `node tests/test_summary_coverage.cjs` f
 new summary assertions. Fixtures and sources.json record the four original PDF URLs and
 content hashes. Previously downloaded CSVs remain historical exports; rerun the query
 and download new files after deployment to obtain corrected parsed reasons.
+
+
+## All-team source recheck on 22 November 2026
+
+The recheck fetched 155 ESPN summaries underlying the retained first ten 2024–25
+games for each of 30 teams (300 team-game records and 4,056 listed player rows).
+Names/IDs, reported minutes, original DNP flags and nonparticipation reasons agreed
+with the source; no source-fetch or parse failures occurred in that bounded sample.
+The 69 official PDFs were fetched again with unchanged content hashes; all 8,035
+reason rows matched the independent extraction based on drawn table-cell borders.
+These are source-agreement checks, not validation of every season or medical truth.
+
+Reviewing the remaining unknown reasons identified additional source-text gaps:
+metatarsal/tibial, facet, core, patella/tendonopathy, laceration, explicitly post-traumatic,
+disc and lumbar reasons, plus strep throat. The classifier now handles those terms.
+In the 8,035-row PDF corpus, 139 previously unknown rows become injury-related and
+eight become illness-related. These counts include repeated report listings and do not
+represent 147 unique injuries. Equipment-only facemask entries, unspecified
+reconditioning, dash reasons and mixed injury/illness remain unknown. Explicit
+Head; Illness remains illness; a body location must not invent a head injury.

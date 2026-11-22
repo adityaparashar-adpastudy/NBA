@@ -39,6 +39,31 @@ class ClassificationReviewTests(unittest.TestCase):
             with self.subTest(reason=row['reason'],player=row['player']):
                 self.assertEqual(report_category(row['reason']),expected)
                 self.assertEqual(classify_absence(row['reason']),expected)
+    def test_additional_reasons_found_in_all_team_pdf_recheck(self):
+        expected={
+            'Injury/Illness - Right Fifth Metatarsal; Repair':'injury',
+            'Injury/Illness - Left Tibial; Stress Reaction':'injury',
+            'Injury/Illness - Right Facet; Inflammation':'injury',
+            'Injury/Illness - Core; Tightness':'injury',
+            'Injury/Illness - Right Patella; Tendonopathy':'injury',
+            'Injury/Illness - Head; Laceration':'injury',
+            'Injury/Illness - Post traumatic; Headache':'injury',
+            'Injury/Illness - Disc; Irritation':'injury',
+            'Injury/Illness - Lumbar; Stress Reaction':'injury',
+            'Injury/Illness - N/A; Strep Throat':'illness',
+            'Injury/Illness - N/a; Strep throat':'illness'}
+        for reason,category in expected.items():
+            with self.subTest(reason=reason):
+                self.assertEqual(report_category(reason),category)
+                self.assertEqual(classify_absence(reason),category)
+    def test_explicit_head_illness_is_not_relabelled_as_injury(self):
+        self.assertEqual(report_category('Injury/Illness - Head; Illness'),'illness')
+    def test_equipment_and_mixed_conditions_do_not_become_confirmed_injuries(self):
+        for reason in ['Injury/Illness - N/a; Facemask','Return to Competition Reconditioning','-',
+                       'Injury/Illness - Lower Back; Injury Mangement/Illness','Headache',
+                       'Injury/Illness - Lumbar; Illness']:
+            with self.subTest(reason=reason):self.assertEqual(report_category(reason),'unknown')
+
     def test_source_prefix_and_whitespace_do_not_change_category(self):
         for reason in ['Left Sciatic Nerve','Right Sciatica','Left Plantar','Left Patellofemoral','Posterior Tibialis Tendon','CORNEAL ABRASION','VIRUS']:
             expected=classify_absence(reason)
