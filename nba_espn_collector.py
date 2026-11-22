@@ -138,7 +138,9 @@ def parse_summary(data, team, event_id):
     overtime = max(periods) - 4
     event = dict(competition, date=competition.get('date') or data['header'].get('date'), venue=data.get('gameInfo',{}).get('venue',{}))
     date, zone = local_date(event)
-    return dict(game_id=str(event_id), date=date, date_timezone=zone, opp=opponent.get('team',{}).get('abbreviation','?'),
+    return dict(game_id=str(event_id), team_code=team, team_name=block.get('team',{}).get('displayName') or own.get('team',{}).get('displayName') or team,
+                season_end_year=data.get('header',{}).get('season',{}).get('year'),
+                opponent_name=opponent.get('team',{}).get('displayName') or opponent.get('team',{}).get('abbreviation'), date=date, date_timezone=zone, opp=opponent.get('team',{}).get('abbreviation','?'),
                 wl='W' if own.get('winner') is True else ('L' if own.get('winner') is False else '?'),
                 minutes_played=240+25*overtime, minutes_basis='Five players × completed period lengths',
                 overtime_periods=overtime, players_entered=sum(p['played'] is True for p in players),

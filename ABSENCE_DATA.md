@@ -24,3 +24,12 @@ Audit fixes:
 - Non-object JSON and invalid game limits return client errors. Summary caching retains only fields used by the app.
 
 Verification: the full 2024–25 replay now collects all 82 regular-season games for each of 30 teams (2,460 team-game records) from retained source responses. It retains 67 participation-unknown player-game records and reports their uncertainty without inferring absence. Historical injury incidence has not been medically or independently adjudicated.
+
+CSV exports:
+- After loading season or single-game results, Export injuries CSV downloads only loaded records with confirmed nonparticipation and source category injury. Export all absence records CSV also includes illness, other/unknown reasons, and participation-unknown records with their separate status.
+- Columns preserve team name/code, season, source-reported player full name and ID, game date/timezone/ID, opponent, result, category, exact reason, source participation fields, URL, sample size, coverage note, and export time. Actual game season metadata takes priority over the selected year in single-game mode.
+- Every row states the incomplete ESPN source coverage. The export does not fill missing inactive injuries or classify every DNP as injury. Changing query filters disables exports until the next query. Files use UTF-8 BOM, quoted CSV fields, and spreadsheet formula protection.
+- Run CSV serialization checks with `node tests/test_csv_export.cjs` when Node.js is available. Browser download verified with the Lakers' first ten games of 2024–25; downloaded rows reconciled to the loaded injury count. This is export verification, not medical validation.
+
+Local source inspection:
+Only two saved data files were found under the supplied Downloads/NBA folder: ATL_game_metrics_2025.csv and PHO_game_metrics_2025.csv. Their injury-labeled counts derive from generic Did Not Play records, without injury-specific reasons. The supplied warriors_injury_scraper.py targets Pro Sports Transactions, but no saved output from that scraper was present and its source returned 403 during this check. These files cannot establish a complete player-level injury dataset. A trusted saved injury log must be identified before using it as the dashboard's authoritative injury source.

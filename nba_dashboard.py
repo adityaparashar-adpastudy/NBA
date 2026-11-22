@@ -159,6 +159,10 @@ HTML = """
   .run-btn:active { transform: translateY(0); }
   .run-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
+  .export-actions { display:flex; flex-wrap:wrap; gap:0.75rem; }
+  .export-actions button { padding:0.7rem 1rem; border:1px solid var(--accent); border-radius:6px; background:var(--surface); color:var(--text); cursor:pointer; }
+  .export-actions button:disabled { opacity:0.5; cursor:not-allowed; }
+  .coverage-warning { padding:1rem; border:1px solid var(--accent); border-radius:6px; }
   /* metric legend */
   .legend {
     border-top: 1px solid var(--border);
@@ -445,10 +449,33 @@ HTML = """
   </div>
 </main>
 
+<script src="{{ url_for('static', filename='injury_export.js') }}"></script>
 <script>
 let currentMode = 'team';
+let loadedExport = null;
+function invalidateExport() {
+  loadedExport = null;
+  document.querySelectorAll('[data-export]').forEach(button => button.disabled = true);
+}
+['team','season','max_games','game_id'].forEach(id => document.getElementById(id).addEventListener('change', invalidateExport));
+function exportAbsences(scope) {
+  if (!loadedExport) return;
+  const context = {...loadedExport.context, exportedAt:new Date().toISOString()};
+  const records = NBAInjuryExport.rows(loadedExport.games, context, scope);
+  if (!records.length) return;
+  const blob = new Blob([NBAInjuryExport.csv(records)], {type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  const year = loadedExport.games[0]?.season_end_year || context.season;
+  anchor.download = `nba_${context.team}_${year}_${scope === 'injury' ? 'reported_injuries' : 'reported_absences'}.csv`;
+  document.body.appendChild(anchor); anchor.click(); anchor.remove();
+  setTimeout(() => URL.revokeObjectURL(url),1000);
+}
+
 
 function setMode(mode, el) {
+  invalidateExport();
   currentMode = mode;
   document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
   el.classList.add('active');
@@ -459,6 +486,7 @@ function setMode(mode, el) {
 async function runQuery() {
   const team      = document.getElementById('team').value;
   const season    = document.getElementById('season').value;
+  const teamName  = document.getElementById('team').selectedOptions[0].textContent.replace(/ \([A-Z]+\)$/, '');
   const maxGames  = document.getElementById('max_games').value;
   const gameId    = document.getElementById('game_id').value.trim();
   const btn       = document.getElementById('runBtn');
@@ -469,6 +497,7 @@ async function runQuery() {
     return;
   }
 
+  invalidateExport();
   btn.disabled = true;
   btn.textContent = 'FETCHING...';
   out.innerHTML = `
@@ -492,7 +521,7 @@ async function runQuery() {
     document.getElementById('statusText').textContent = data.ok ? 'Done' : 'Error';
 
     if (data.ok) {
-      renderResults(data, team, season);
+      renderResults(data, team, season, teamName);
     } else {
       document.getElementById('liveLog').textContent = data.output;
     }
@@ -509,19 +538,23 @@ async function runQuery() {
 function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 }
-function renderResults(data, team, season) {
+function renderResults(data, team, season, teamName) {
   const out = document.getElementById('outputArea');
   if (data.mode === 'roster') {
     out.innerHTML = `<h3>Players listed in ${data.collected_games} collected game(s): ${data.roster_count}</h3><p>Players listed in source box scores for the selected games; not a complete season roster or game-day eligibility list.</p>${(data.warnings || []).map(w=>`<p role="alert">${escapeHtml(w)}</p>`).join('')}<pre>${escapeHtml(data.output)}</pre>`;
     return;
   }
   const games = data.mode === 'game' ? [{...data.metrics, game_id:data.game_id}] : data.games;
+  loadedExport = {games, context:{team, teamName, season, requestedGames:data.requested_games || games.length}};
+  const injuryRows = NBAInjuryExport.rows(games,loadedExport.context,'injury');
+  const absenceRows = NBAInjuryExport.rows(games,loadedExport.context,'all');
+  const exportButtons = `<div class="export-actions"><button data-export onclick="exportAbsences('injury')" ${injuryRows.length ? '' : 'disabled'}>Export injuries CSV (${injuryRows.length})</button><button data-export onclick="exportAbsences('all')" ${absenceRows.length ? '' : 'disabled'}>Export all absence records CSV (${absenceRows.length})</button></div><p class="hint">Exports contain only the loaded games and retain each player’s source-reported name and reason. Change the game sample to load more records.</p>`;
   const categories = ['injury','illness','other','unknown'];
   const totals = Object.fromEntries(categories.map(c => [c, games.reduce((sum,g) => sum + g.absence_counts[c],0)]));
-  const cards = categories.map(c => `<div class="metric-card"><div class="metric-label">${c.toUpperCase()}</div><div class="metric-value">${totals[c]}</div><div class="metric-sub">confirmed source absences</div></div>`).join('');
+  const cards = categories.map(c => `<div class="metric-card"><div class="metric-label">${c.toUpperCase()}</div><div class="metric-value">${totals[c]}</div><div class="metric-sub">partial box-score records</div></div>`).join('');
   const rows = games.map(g => `<tr><td>${escapeHtml(g.date || g.game_id)}</td><td>${escapeHtml(g.opp || team)}</td>${categories.map(c=>`<td>${g.absence_counts[c]}</td>`).join('')}<td>${g.players_dnp}</td><td>${g.players_entered}</td><td>${g.participation_unknown || 0}</td><td>${g.minutes_played}</td><td>${g.overtime_periods}</td></tr>`).join('');
   const details = games.map(g => `<details><summary>${escapeHtml(g.date || g.game_id)} — player absence reasons</summary><p><a href="${escapeHtml(g.source_url)}" target="_blank" rel="noopener">Source box score</a></p><table><thead><tr><th>Player</th><th>Category</th><th>Reported reason</th><th>Source minutes</th><th>Source DNP flag</th></tr></thead><tbody>${g.players.filter(p=>p.played !== true).map(p=>`<tr><td>${escapeHtml(p.player)}</td><td>${escapeHtml(p.played === null ? 'Participation unknown' : p.absence_category)}</td><td>${escapeHtml(p.reported_absence_reason || 'Not reported')}</td><td>${escapeHtml(p.reported_minutes ?? 'Not reported')}</td><td>${escapeHtml(p.source_did_not_play ?? 'Not reported')}</td></tr>`).join('') || '<tr><td colspan="5">No nonparticipants listed in source.</td></tr>'}</tbody></table></details>`).join('');
-  out.innerHTML = `<p>${games.length} completed game(s) collected${data.requested_games ? ' of '+data.requested_games+' requested' : ''}.</p><div class="results-grid">${cards}</div><p>Categories describe source-reported absences, not new injury events or diagnoses. Generic DNP, missing reasons, and ambiguous reasons remain unknown. Unlisted players are not inferred. Repeated absences count once per player per game. Participation-unknown records are excluded from both absence and entered-player totals. Box-score counts do not establish a complete injury registry. Dates use the venue time zone where known. Team minutes use five players × period lengths, avoiding rounded player-minute totals.</p>${(data.warnings || []).map(w=>`<p role="alert">Collection warning: ${escapeHtml(w)}</p>`).join('')}<div class="game-table-wrap"><table><thead><tr><th>Date / Game</th><th>Team / Opp</th><th>Injury</th><th>Illness</th><th>Other</th><th>Unknown</th><th>Confirmed absent</th><th>Confirmed entered</th><th>Participation unknown</th><th>Team minutes*</th><th>OT</th></tr></thead><tbody>${rows}</tbody></table></div>${details}`;
+  out.innerHTML = `<h3>${escapeHtml(games[0]?.team_name || teamName || team)} · Season ending ${escapeHtml(games[0]?.season_end_year || season)}</h3><p role="note" class="coverage-warning">Injury coverage is incomplete: the ESPN box scores omit some injured inactive players. Zero listed injury records does not mean zero injuries. Exports carry this same limitation.</p>${exportButtons}<p>${games.length} completed game(s) collected${data.requested_games ? ' of '+data.requested_games+' requested' : ''}.</p><div class="results-grid">${cards}</div><p>Categories describe source-reported absences, not new injury events or diagnoses. Generic DNP, missing reasons, and ambiguous reasons remain unknown. Unlisted players are not inferred. Repeated absences count once per player per game. Participation-unknown records are excluded from both absence and entered-player totals. Box-score counts do not establish a complete injury registry. Dates use the venue time zone where known. Team minutes use five players × period lengths, avoiding rounded player-minute totals.</p>${(data.warnings || []).map(w=>`<p role="alert">Collection warning: ${escapeHtml(w)}</p>`).join('')}<div class="game-table-wrap"><table><thead><tr><th>Date / Game</th><th>Team / Opp</th><th>Injury</th><th>Illness</th><th>Other</th><th>Unknown</th><th>Confirmed absent</th><th>Confirmed entered</th><th>Participation unknown</th><th>Team minutes*</th><th>OT</th></tr></thead><tbody>${rows}</tbody></table></div>${details}`;
 }
 </script>
 </body>
