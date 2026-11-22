@@ -5,9 +5,6 @@ Then open: http://127.0.0.1:5000
 """
 
 from flask import Flask, request, jsonify, render_template_string
-import subprocess
-import sys
-import os
 
 app = Flask(__name__)
 
@@ -435,7 +432,7 @@ HTML = """
 
     <div class="legend">
       <div class="section-label">Metrics</div>
-      <div class="legend-item"><span class="legend-num">1</span> Injuries (DNP players)</div>
+      <div class="legend-item"><span class="legend-num">1</span> Reported absence categories</div>
       <div class="legend-item"><span class="legend-num">2</span> Minutes played per game</div>
       <div class="legend-item"><span class="legend-num">3</span> Players who entered game</div>
       <div class="legend-item"><span class="legend-num">4</span> Roster size (eligible)</div>
@@ -511,146 +508,28 @@ async function runQuery() {
   btn.textContent = 'RUN QUERY';
 }
 
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
 function renderResults(data, team, season) {
   const out = document.getElementById('outputArea');
-
   if (data.mode === 'roster') {
-    out.innerHTML = `
-      <div class="status-bar">
-        <div class="dot done"></div>
-        <span>${team} Roster — ${season} Season — ${data.roster_count} players</span>
-      </div>
-      <div class="results-grid">
-        <div class="metric-card m4" style="animation-delay:0s">
-          <div class="metric-num">METRIC 4</div>
-          <div class="metric-label">Roster Size (Eligible)</div>
-          <div class="metric-value">${data.roster_count}</div>
-          <div class="metric-sub">players on active roster</div>
-        </div>
-      </div>
-      <div class="raw-output">${data.output}</div>`;
+    out.innerHTML = `<h3>Season roster: ${data.roster_count} players</h3><p>This is the season roster, not game-day availability.</p><pre>${escapeHtml(data.output)}</pre>`;
     return;
   }
-
-  if (data.mode === 'game' && data.metrics) {
-    const m = data.metrics;
-    const ot = m.overtime_periods > 0 ? ` +${m.overtime_periods} OT` : ' Regulation';
-    out.innerHTML = `
-      <div class="status-bar">
-        <div class="dot done"></div>
-        <span>${team} · Game ${data.game_id}</span>
-      </div>
-      <div class="results-grid">
-        <div class="metric-card" style="animation-delay:0s">
-          <div class="metric-num">METRIC 1</div>
-          <div class="metric-label">Injuries / DNP</div>
-          <div class="metric-value">${m.injured_out}</div>
-          <div class="metric-sub">players did not play</div>
-        </div>
-        <div class="metric-card m2" style="animation-delay:0.05s">
-          <div class="metric-num">METRIC 2</div>
-          <div class="metric-label">Minutes Played</div>
-          <div class="metric-value">${m.minutes_played}</div>
-          <div class="metric-sub">${ot}</div>
-        </div>
-        <div class="metric-card m3" style="animation-delay:0.1s">
-          <div class="metric-num">METRIC 3</div>
-          <div class="metric-label">Players Entered</div>
-          <div class="metric-value">${m.players_entered}</div>
-          <div class="metric-sub">logged at least 1 minute</div>
-        </div>
-        <div class="metric-card m4" style="animation-delay:0.15s">
-          <div class="metric-num">METRIC 4</div>
-          <div class="metric-label">Roster Size</div>
-          <div class="metric-value">${data.roster_count || '—'}</div>
-          <div class="metric-sub">players on roster</div>
-        </div>
-      </div>
-      <div class="raw-output">${data.output}</div>`;
-    return;
-  }
-
-  if (data.mode === 'team' && data.games && data.games.length > 0) {
-    const rows = data.games.map((g, i) => {
-      const wlClass = g.wl && g.wl.startsWith('W') ? 'win' : 'loss';
-      return `<tr>
-        <td>${g.date}</td>
-        <td>${g.opp}</td>
-        <td class="${wlClass}">${g.wl}</td>
-        <td class="num">${g.injured_out}</td>
-        <td class="min">${g.minutes_played}</td>
-        <td>${g.overtime_periods > 0 ? g.overtime_periods + ' OT' : '—'}</td>
-        <td class="ent">${g.players_entered}</td>
-        <td>${g.players_dnp}</td>
-        <td class="ros">${data.roster_count}</td>
-      </tr>`;
-    }).join('');
-
-    const avgMin = (data.games.reduce((s,g)=>s+g.minutes_played,0)/data.games.length).toFixed(1);
-    const avgEnt = (data.games.reduce((s,g)=>s+g.players_entered,0)/data.games.length).toFixed(1);
-    const avgInj = (data.games.reduce((s,g)=>s+g.injured_out,0)/data.games.length).toFixed(1);
-
-    out.innerHTML = `
-      <div class="status-bar">
-        <div class="dot done"></div>
-        <span>${team} · ${season} Season · ${data.games.length} games pulled</span>
-      </div>
-      <div class="results-grid">
-        <div class="metric-card" style="animation-delay:0s">
-          <div class="metric-num">METRIC 1 AVG</div>
-          <div class="metric-label">Avg Injuries / Game</div>
-          <div class="metric-value">${avgInj}</div>
-          <div class="metric-sub">DNP players per game</div>
-        </div>
-        <div class="metric-card m2" style="animation-delay:0.05s">
-          <div class="metric-num">METRIC 2 AVG</div>
-          <div class="metric-label">Avg Minutes / Game</div>
-          <div class="metric-value">${avgMin}</div>
-          <div class="metric-sub">team total (240 = regulation)</div>
-        </div>
-        <div class="metric-card m3" style="animation-delay:0.1s">
-          <div class="metric-num">METRIC 3 AVG</div>
-          <div class="metric-label">Avg Players Entered</div>
-          <div class="metric-value">${avgEnt}</div>
-          <div class="metric-sub">per game</div>
-        </div>
-        <div class="metric-card m4" style="animation-delay:0.15s">
-          <div class="metric-num">METRIC 4</div>
-          <div class="metric-label">Roster Size</div>
-          <div class="metric-value">${data.roster_count}</div>
-          <div class="metric-sub">players on active roster</div>
-        </div>
-      </div>
-      <div class="game-table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Opp</th>
-              <th>W/L</th>
-              <th>① Injuries</th>
-              <th>② Minutes</th>
-              <th>OT</th>
-              <th>③ Entered</th>
-              <th>DNP</th>
-              <th>④ Roster</th>
-            </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </div>`;
-    return;
-  }
-
-  // fallback
-  out.innerHTML = `<div class="raw-output">${data.output || 'No results.'}</div>`;
+  const games = data.mode === 'game' ? [{...data.metrics, game_id:data.game_id}] : data.games;
+  const categories = ['injury','illness','other','unknown'];
+  const totals = Object.fromEntries(categories.map(c => [c, games.reduce((sum,g) => sum + g.absence_counts[c],0)]));
+  const cards = categories.map(c => `<div class="metric-card"><div class="metric-label">${c.toUpperCase()}</div><div class="metric-value">${totals[c]}</div><div class="metric-sub">reported player-game absences</div></div>`).join('');
+  const rows = games.map(g => `<tr><td>${escapeHtml(g.date || g.game_id)}</td><td>${escapeHtml(g.opp || team)}</td>${categories.map(c=>`<td>${g.absence_counts[c]}</td>`).join('')}<td>${g.players_dnp}</td><td>${g.players_entered}</td><td>${g.minutes_played}</td><td>${g.overtime_periods}</td></tr>`).join('');
+  const details = games.map(g => `<details><summary>${escapeHtml(g.date || g.game_id)} — player absence reasons</summary><p><a href="${escapeHtml(g.source_url)}" target="_blank" rel="noopener">Source box score</a></p><table><thead><tr><th>Player</th><th>Category</th><th>Reported reason</th></tr></thead><tbody>${g.players.filter(p=>!p.played).map(p=>`<tr><td>${escapeHtml(p.player)}</td><td>${escapeHtml(p.absence_category)}</td><td>${escapeHtml(p.reported_absence_reason || 'Not reported')}</td></tr>`).join('') || '<tr><td colspan="3">No nonparticipants listed in source.</td></tr>'}</tbody></table></details>`).join('');
+  out.innerHTML = `<p>${games.length} completed game(s) collected${data.requested_games ? ' of '+data.requested_games+' requested' : ''}.</p><div class="results-grid">${cards}</div><p>Categories describe source-reported absences, not new injury events or diagnoses. Generic DNP, missing reasons, and ambiguous reasons remain unknown. Unlisted players are not inferred. Repeated absences count once per player per game.</p>${(data.warnings || []).map(w=>`<p role="alert">Collection warning: ${escapeHtml(w)}</p>`).join('')}<div class="game-table-wrap"><table><thead><tr><th>Date / Game</th><th>Team / Opp</th><th>Injury</th><th>Illness</th><th>Other</th><th>Unknown</th><th>Total absent</th><th>Entered</th><th>Minutes</th><th>OT</th></tr></thead><tbody>${rows}</tbody></table></div>${details}`;
 }
 </script>
 </body>
 </html>
 """
 
-SCRIPT = os.path.join(os.path.dirname(__file__), "lakers_test.py")
 
 @app.route("/")
 def index():
@@ -658,115 +537,20 @@ def index():
 
 @app.route("/run", methods=["POST"])
 def run():
-    payload = request.json
-    mode      = payload.get("mode", "team")
-    team      = payload.get("team", "LAL").upper()
-    season    = payload.get("season", "2025")
-    max_games = payload.get("max_games", "10")
-    game_id   = payload.get("game_id", "").strip()
-
-    if mode == "team":
-        cmd = [sys.executable, SCRIPT, "--team", team, "--season", season, "--max_games", str(max_games)]
-    elif mode == "game":
-        cmd = [sys.executable, SCRIPT, "--game_id", game_id, "--team", team, "--season", season]
-    elif mode == "roster":
-        cmd = [sys.executable, SCRIPT, "--roster", team, "--season", season]
-    else:
-        return jsonify(ok=False, output="Unknown mode")
-
+    from lakers_test import collect_dashboard
+    payload = request.get_json(silent=True) or {}
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
-        raw = result.stdout + result.stderr
-
-        # Parse roster count
-        roster_count = None
-        for line in raw.splitlines():
-            if "Total:" in line and "players" in line:
-                try: roster_count = int(line.split("Total:")[1].split("players")[0].strip())
-                except: pass
-            if "Roster size:" in line:
-                try: roster_count = int(line.split("Roster size:")[1].split("players")[0].strip())
-                except: pass
-
-        if mode == "roster":
-            return jsonify(ok=True, mode="roster", output=raw, roster_count=roster_count or 0)
-
-        if mode == "game":
-            metrics = parse_game_metrics(raw)
-            return jsonify(ok=True, mode="game", game_id=game_id, output=raw,
-                           metrics=metrics, roster_count=roster_count)
-
-        if mode == "team":
-            games = parse_team_games(raw)
-            return jsonify(ok=True, mode="team", output=raw, games=games,
-                           roster_count=roster_count or 0)
-
-    except subprocess.TimeoutExpired:
-        return jsonify(ok=False, output="Timed out — try fewer games.")
-    except Exception as e:
-        return jsonify(ok=False, output=str(e))
-
-
-def parse_game_metrics(raw):
-    """Extract the 4 metric values from single-game output."""
-    m = {"injured_out": 0, "minutes_played": 0, "overtime_periods": 0,
-         "players_entered": 0, "players_dnp": 0}
-    for line in raw.splitlines():
-        if "Injuries" in line and ":" in line:
-            try: m["injured_out"] = int(line.split(":")[-1].strip().split()[0])
-            except: pass
-        if "minutes played" in line.lower() and ":" in line:
-            try: m["minutes_played"] = float(line.split(":")[-1].strip().split()[0])
-            except: pass
-        if "OT" in line and "+" in line:
-            try: m["overtime_periods"] = int(line.split("+")[1].split("OT")[0].strip())
-            except: pass
-        if "Players who entered" in line and ":" in line:
-            try: m["players_entered"] = int(line.split(":")[-1].strip())
-            except: pass
-        if "Players who did NOT" in line and ":" in line:
-            try: m["players_dnp"] = int(line.split(":")[-1].strip())
-            except: pass
-    return m
-
-
-def parse_team_games(raw):
-    """Parse the per-game rows printed by cmd_team."""
-    games = []
-    current = {}
-    for line in raw.splitlines():
-        line = line.strip()
-        # detect game header lines like: [1/10] 2024-10-22 vs MIN (W)  →  20241022...
-        if line.startswith("[") and "vs" in line and "→" in line:
-            if current: games.append(current)
-            parts = line.split()
-            try:
-                date = parts[1]
-                opp  = parts[3]
-                wl   = parts[4].strip("()")
-                gid  = line.split("→")[-1].strip()
-                current = {"date": date, "opp": opp, "wl": wl, "game_id": gid,
-                           "injured_out": 0, "minutes_played": 0.0,
-                           "overtime_periods": 0, "players_entered": 0, "players_dnp": 0}
-            except: current = {}
-        if current:
-            if "1. Injuries" in line and ":" in line:
-                try: current["injured_out"] = int(line.split(":")[-1].strip().split()[0])
-                except: pass
-            if "2. Mins" in line and ":" in line:
-                try: current["minutes_played"] = float(line.split(":")[-1].strip())
-                except: pass
-            if "OT Periods" in line and ":" in line:
-                try: current["overtime_periods"] = int(line.split(":")[-1].strip())
-                except: pass
-            if "3. Entered" in line and ":" in line:
-                try: current["players_entered"] = int(line.split(":")[-1].strip())
-                except: pass
-            if "Players DNP" in line and ":" in line:
-                try: current["players_dnp"] = int(line.split(":")[-1].strip())
-                except: pass
-    if current: games.append(current)
-    return games
+        result = collect_dashboard(payload.get('mode', 'team'),
+                                   str(payload.get('team', 'LAL')).upper(),
+                                   str(payload.get('season', '2025')),
+                                   payload.get('max_games', 10),
+                                   str(payload.get('game_id', '')).strip())
+        return jsonify(ok=True, **result)
+    except (ValueError, TypeError) as exc:
+        return jsonify(ok=False, output=str(exc)), 400
+    except Exception:
+        app.logger.exception('NBA collection failed')
+        return jsonify(ok=False, output='Source collection failed. Try again later; unavailable data is not zero absences.'), 502
 
 
 if __name__ == "__main__":

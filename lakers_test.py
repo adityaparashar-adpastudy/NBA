@@ -1,4 +1,4 @@
-import argparse,time,requests,pandas as pd
+import argparse,time,re,json,requests,pandas as pd
 from bs4 import BeautifulSoup,Comment
 from io import StringIO
 HEADERS={"User-Agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
@@ -40,21 +40,91 @@ def get_roster(team,season):
     pc=next((c for c in df.columns if "Player" in c),None)
     if pc: df=df[df[pc].notna()&(df[pc]!="Player")]
     return df
+def classify_absence(reason):
+    """Classify only explicit source wording; generic DNP is unknown."""
+    text = (reason or "").lower()
+    injury = bool(re.search(r"\b(injury|injured|sprain|strain|fracture|soreness|sore|contusion|concussion|surgery|surgical|torn|tear|tendinitis|tendinopathy|ankle|knee|hamstring|achilles|groin|back|wrist|shoulder|foot|toe|thumb|hip|quad|calf)\b", text))
+    illness = bool(re.search(r"\b(illness|ill|flu|influenza|covid(?:-19)?|gastroenteritis|migraine)\b", text))
+    other = bool(re.search(r"coach[’']?s? decision|\b(personal|rest|suspended|suspension|g league|g-league|assignment|not with team)\b", text))
+    categories = [name for name, flag in [('injury', injury), ('illness', illness), ('other', other)] if flag]
+    return categories[0] if len(categories) == 1 else 'unknown'
+
+
+def parse_boxscore(soup, game_id, team):
+    table = find_table(soup, f"box-{team}-game-basic")
+    if table is None:
+        raise ValueError(f"Box score unavailable for {team}: {game_id}")
+    players = []
+    for row in table.select('tbody tr'):
+        name_cell = row.select_one('[data-stat="player"]')
+        if name_cell is None or not name_cell.get('data-append-csv'):
+            continue  # headings and totals are not players
+        mp_cell = row.select_one('[data-stat="mp"]')
+        dnp_cell = row.select_one('[data-stat="reason"], [data-stat="dnp"]')
+        mp = mp_cell.get_text(' ', strip=True) if mp_cell else ''
+        played = bool(re.fullmatch(r"\d+:\d{2}", mp))
+        # Retain the exact extracted source text; do not manufacture a reason.
+        reason = dnp_cell.get_text(' ', strip=True) if dnp_cell else (mp if not played else '')
+        if not played and not reason:
+            reason = None
+        category = None if played else classify_absence(reason)
+        players.append(dict(player=name_cell.get_text(' ', strip=True),
+                            player_id=name_cell['data-append-csv'], played=played,
+                            minutes=mp if played else None, reported_absence_reason=reason,
+                            absence_category=category))
+    if not players or not any(player['played'] for player in players):
+        raise ValueError('No completed player participation data found in box score')
+    counts = {category: sum(player['absence_category'] == category for player in players)
+              for category in ('injury', 'illness', 'other', 'unknown')}
+    total_min = sum(parse_minutes(player['minutes']) for player in players if player['played'])
+    return dict(minutes_played=round(total_min, 1),
+                overtime_periods=max(0, round((total_min - 240) / 25)),
+                players_entered=sum(player['played'] for player in players),
+                players_dnp=sum(counts.values()), injured_out=counts['injury'],
+                absence_counts=counts, players=players,
+                source_url=f'https://www.basketball-reference.com/boxscores/{game_id}.html')
+
+
 def get_game_metrics(game_id,team):
     url=f"https://www.basketball-reference.com/boxscores/{game_id}.html"
-    soup=get_soup(url)
-    table=find_table(soup,f"box-{team}-game-basic")
-    if not table: return None
-    df=pd.read_html(StringIO(str(table)))[0]
-    df=flatten_columns(df)
-    if "MP" in df.columns: df=df[df["MP"]!="MP"].copy()
-    dnp_flags=["Did Not Play","Did Not Dress","Not With Team"]
-    played=df[df["MP"].notna()&~df["MP"].isin(dnp_flags)].copy()
-    dnp=df[df["MP"].isin(dnp_flags)].copy()
-    injured=dnp[dnp["MP"]=="Did Not Play"]
-    total_min=played["MP"].apply(parse_minutes).sum()
-    ot=max(0,round((total_min-240)/25)) if total_min>241 else 0
-    return {"minutes_played":round(total_min,1),"overtime_periods":ot,"players_entered":len(played),"players_dnp":len(dnp),"injured_out":len(injured)}
+    return parse_boxscore(get_soup(url), game_id, team)
+
+
+def collect_dashboard(mode, team, season, max_games=10, game_id=''):
+    if not re.fullmatch(r'[A-Z]{3}', team) or not re.fullmatch(r'\d{4}', str(season)):
+        raise ValueError('Choose a valid team and season')
+    if mode == 'roster':
+        roster = get_roster(team, season)
+        if roster.empty:
+            raise ValueError('Season roster unavailable from source')
+        return dict(mode=mode, roster_count=len(roster), output=roster.to_string(index=False))
+    if mode == 'game':
+        if not re.fullmatch(r'\d{9}[A-Z]{3}', game_id):
+            raise ValueError('Use a box-score ID such as 202410220BOS')
+        return dict(mode=mode, game_id=game_id, metrics=get_game_metrics(game_id, team), output='')
+    if mode != 'team':
+        raise ValueError('Unknown mode')
+    limit = int(max_games)
+    if not 1 <= limit <= 100:
+        raise ValueError('Choose between 1 and 100 games')
+    log = get_game_log(team, season)
+    if log.empty:
+        raise ValueError('No completed games available from source for this season')
+    games, warnings = [], []
+    for _, row in log.head(limit).iterrows():
+        gid = row.get('game_id')
+        try:
+            if not gid:
+                raise ValueError('Missing game ID')
+            metrics = get_game_metrics(gid, team)
+            games.append(dict(metrics, date=str(row.get('Date', '')), opp=str(row.get('Opp', '?')),
+                              wl=str(row.get('W/L', row.get('Rslt', '?'))), game_id=gid))
+        except (requests.RequestException, ValueError) as exc:
+            warnings.append(f"{gid}: {exc}")
+    if not games:
+        raise ValueError('No box scores could be collected. Try again later; missing data is not zero absences.')
+    return dict(mode=mode, games=games, warnings=warnings, requested_games=min(limit, len(log)), output='')
+
 def get_game_log(team,season):
     url=f"https://www.basketball-reference.com/teams/{team}/{season}/gamelog/"
     soup=get_soup(url)
@@ -99,9 +169,13 @@ def cmd_game(game_id,team):
     if not m:
         print("ERROR: Could not find boxscore.")
         return
+    print("  Absence categories:", m['absence_counts'])
+    for player in m['players']:
+        if not player['played']:
+            print(f"  {player['player']} | {player['absence_category']} | {player['reported_absence_reason'] or 'Not reported'}")
     ot=f"  (+{m['overtime_periods']} OT)" if m["overtime_periods"] else ""
     print(f"-- {team} | Game: {game_id} --")
-    print(f"  1. Injuries (DNP)               : {m['injured_out']} player(s)")
+    print(f"  1. Injury-related absences               : {m['injured_out']} player(s)")
     print(f"  2. Total minutes played         : {m['minutes_played']} min{ot}")
     print(f"  3. Players who entered the game : {m['players_entered']}")
     print(f"  4. Players who did NOT play     : {m['players_dnp']}")
@@ -127,7 +201,7 @@ def cmd_team(team,season,max_games):
         if not m:
             print("    Could not fetch boxscore, skipping.")
             continue
-        rows.append({"Date":date,"Opp":opp,"W/L":wl,"1. Injuries DNP":m["injured_out"],"2. Mins Played":m["minutes_played"],"OT Periods":m["overtime_periods"],"3. Entered Game":m["players_entered"],"Players DNP":m["players_dnp"],"4. Roster Size":roster_size})
+        rows.append({"Date":date,"Opp":opp,"W/L":wl,"1. Injury-related absences":m["injured_out"],"2. Mins Played":m["minutes_played"],"OT Periods":m["overtime_periods"],"3. Entered Game":m["players_entered"],"Players DNP":m["players_dnp"],"4. Roster Size":roster_size, **{f"Absences {k}":v for k,v in m["absence_counts"].items()}, "Source URL":m["source_url"], "Player absence records":json.dumps([player for player in m["players"] if not player["played"]],ensure_ascii=False)})
     if not rows:
         print("No data collected.")
         return
