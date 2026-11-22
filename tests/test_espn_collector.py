@@ -32,7 +32,12 @@ class ESPNTests(unittest.TestCase):
         with self.assertRaises(ValueError):parse_summary(d,'LAL','401704628')
     def test_missing_minutes_does_not_become_absence(self):
         d=copy.deepcopy(DATA);d['boxscore']['players'][1]['statistics'][0]['athletes'][0]['stats']=[]
-        with self.assertRaises(ValueError):parse_summary(d,'LAL','401704628')
+        m=parse_summary(d,'LAL','401704628')
+        self.assertEqual(m['participation_unknown'],1)
+        self.assertEqual(m['players_entered'],9)
+        self.assertEqual(m['players_dnp'],3)
+        self.assertIsNone(m['players'][0]['played'])
+        self.assertIsNone(m['players'][0]['absence_category'])
     def test_game_api(self):
         with patch('nba_espn_collector.fetch',return_value=DATA):
             r=app.test_client().post('/run',json=dict(mode='game',team='LAL',season='2025',game_id='401704628'))

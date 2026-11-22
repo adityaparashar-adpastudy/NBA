@@ -43,9 +43,9 @@ def get_roster(team,season):
 def classify_absence(reason):
     """Classify only explicit source wording; generic DNP is unknown."""
     text = (reason or "").lower()
-    injury = bool(re.search(r"\b(injury|injured|sprain|strain|fracture|soreness|sore|contusion|concussion|surgery|surgical|torn|tear|tendinitis|tendinopathy|ankle|knee|hamstring|achilles|groin|back|wrist|shoulder|foot|toe|thumb|hip|quad|calf)\b", text))
+    injury = bool(re.search(r"\b(injury|injured|sprain(?:ed)?|strain(?:ed)?|fractur(?:e|ed)|broken|bruise(?:d)?|soreness|sore|contusion|concussion|surgery|surgical|torn|tear|tendinitis|tendinopathy|ankle|knee|hamstring|achilles|groin|back|wrist|shoulder|foot|toe|thumb|hip|quad|calf|leg|hand|finger|elbow|heel|acl|mcl|pcl|lcl|oblique|adductor|abductor|neck|rib(?:s)?|sternum|face|rotator cuff|plantar fasci(?:a|itis)|tendonitis)\b", text))
     illness = bool(re.search(r"\b(illness|ill|flu|influenza|covid(?:-19)?|gastroenteritis|migraine)\b", text))
-    other = bool(re.search(r"coach[’']?s? decision|\b(personal|rest|suspended|suspension|g league|g-league|assignment|not with team)\b", text))
+    other = bool(re.search(r"coach[’']?s? decision|\b(personal|rest|suspended|suspension|g league|g-league|assignment|not with team|trade pending)\b", text))
     categories = [name for name, flag in [('injury', injury), ('illness', illness), ('other', other)] if flag]
     return categories[0] if len(categories) == 1 else 'unknown'
 

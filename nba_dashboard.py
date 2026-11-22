@@ -4,6 +4,7 @@ Run: python3 app.py
 Then open: http://127.0.0.1:5000
 """
 
+from datetime import datetime
 from flask import Flask, request, jsonify, render_template_string
 
 app = Flask(__name__)
@@ -360,7 +361,7 @@ HTML = """
           <span class="icon">🏀</span> Single Game
         </button>
         <button class="mode-tab" data-mode="roster" onclick="setMode('roster',this)">
-          <span class="icon">👥</span> Roster Only
+          <span class="icon">👥</span> Player List
         </button>
       </div>
     </div>
@@ -403,13 +404,9 @@ HTML = """
 
     <div class="field">
       <label>Season</label>
-      <select id="season">
-        <option value="2025">2024–25</option>
-        <option value="2024">2023–24</option>
-        <option value="2023">2022–23</option>
-        <option value="2022">2021–22</option>
-        <option value="2021">2020–21</option>
-      </select>
+      <input type="number" id="season" min="1947" max="9999" step="1" value="{{ default_season }}" list="season-suggestions" aria-label="Season end year">
+      <datalist id="season-suggestions">{% for year in seasons %}<option value="{{ year }}">{{ year-1 }}–{{ year }}</option>{% endfor %}</datalist>
+      <div class="hint">Season end year: 2027 means 2026–27. Enter any future year; data appears after games are completed.</div>
     </div>
 
     <div class="field" id="field-maxgames">
@@ -454,7 +451,7 @@ function setMode(mode, el) {
   currentMode = mode;
   document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
   el.classList.add('active');
-  document.getElementById('field-maxgames').style.display = mode === 'team' ? 'flex' : 'none';
+  document.getElementById('field-maxgames').style.display = mode !== 'game' ? 'flex' : 'none';
   document.getElementById('field-gameid').style.display   = mode === 'game'   ? 'flex' : 'none';
 }
 
@@ -520,10 +517,10 @@ function renderResults(data, team, season) {
   const games = data.mode === 'game' ? [{...data.metrics, game_id:data.game_id}] : data.games;
   const categories = ['injury','illness','other','unknown'];
   const totals = Object.fromEntries(categories.map(c => [c, games.reduce((sum,g) => sum + g.absence_counts[c],0)]));
-  const cards = categories.map(c => `<div class="metric-card"><div class="metric-label">${c.toUpperCase()}</div><div class="metric-value">${totals[c]}</div><div class="metric-sub">reported player-game absences</div></div>`).join('');
-  const rows = games.map(g => `<tr><td>${escapeHtml(g.date || g.game_id)}</td><td>${escapeHtml(g.opp || team)}</td>${categories.map(c=>`<td>${g.absence_counts[c]}</td>`).join('')}<td>${g.players_dnp}</td><td>${g.players_entered}</td><td>${g.minutes_played}</td><td>${g.overtime_periods}</td></tr>`).join('');
-  const details = games.map(g => `<details><summary>${escapeHtml(g.date || g.game_id)} — player absence reasons</summary><p><a href="${escapeHtml(g.source_url)}" target="_blank" rel="noopener">Source box score</a></p><table><thead><tr><th>Player</th><th>Category</th><th>Reported reason</th></tr></thead><tbody>${g.players.filter(p=>!p.played).map(p=>`<tr><td>${escapeHtml(p.player)}</td><td>${escapeHtml(p.absence_category)}</td><td>${escapeHtml(p.reported_absence_reason || 'Not reported')}</td></tr>`).join('') || '<tr><td colspan="3">No nonparticipants listed in source.</td></tr>'}</tbody></table></details>`).join('');
-  out.innerHTML = `<p>${games.length} completed game(s) collected${data.requested_games ? ' of '+data.requested_games+' requested' : ''}.</p><div class="results-grid">${cards}</div><p>Categories describe source-reported absences, not new injury events or diagnoses. Generic DNP, missing reasons, and ambiguous reasons remain unknown. Unlisted players are not inferred. Repeated absences count once per player per game. Dates use the venue time zone where known. Team minutes use five players × period lengths, avoiding rounded player-minute totals.</p>${(data.warnings || []).map(w=>`<p role="alert">Collection warning: ${escapeHtml(w)}</p>`).join('')}<div class="game-table-wrap"><table><thead><tr><th>Date / Game</th><th>Team / Opp</th><th>Injury</th><th>Illness</th><th>Other</th><th>Unknown</th><th>Total absent</th><th>Entered</th><th>Team minutes*</th><th>OT</th></tr></thead><tbody>${rows}</tbody></table></div>${details}`;
+  const cards = categories.map(c => `<div class="metric-card"><div class="metric-label">${c.toUpperCase()}</div><div class="metric-value">${totals[c]}</div><div class="metric-sub">confirmed source absences</div></div>`).join('');
+  const rows = games.map(g => `<tr><td>${escapeHtml(g.date || g.game_id)}</td><td>${escapeHtml(g.opp || team)}</td>${categories.map(c=>`<td>${g.absence_counts[c]}</td>`).join('')}<td>${g.players_dnp}</td><td>${g.players_entered}</td><td>${g.participation_unknown || 0}</td><td>${g.minutes_played}</td><td>${g.overtime_periods}</td></tr>`).join('');
+  const details = games.map(g => `<details><summary>${escapeHtml(g.date || g.game_id)} — player absence reasons</summary><p><a href="${escapeHtml(g.source_url)}" target="_blank" rel="noopener">Source box score</a></p><table><thead><tr><th>Player</th><th>Category</th><th>Reported reason</th><th>Source minutes</th><th>Source DNP flag</th></tr></thead><tbody>${g.players.filter(p=>p.played !== true).map(p=>`<tr><td>${escapeHtml(p.player)}</td><td>${escapeHtml(p.played === null ? 'Participation unknown' : p.absence_category)}</td><td>${escapeHtml(p.reported_absence_reason || 'Not reported')}</td><td>${escapeHtml(p.reported_minutes ?? 'Not reported')}</td><td>${escapeHtml(p.source_did_not_play ?? 'Not reported')}</td></tr>`).join('') || '<tr><td colspan="5">No nonparticipants listed in source.</td></tr>'}</tbody></table></details>`).join('');
+  out.innerHTML = `<p>${games.length} completed game(s) collected${data.requested_games ? ' of '+data.requested_games+' requested' : ''}.</p><div class="results-grid">${cards}</div><p>Categories describe source-reported absences, not new injury events or diagnoses. Generic DNP, missing reasons, and ambiguous reasons remain unknown. Unlisted players are not inferred. Repeated absences count once per player per game. Participation-unknown records are excluded from both absence and entered-player totals. Box-score counts do not establish a complete injury registry. Dates use the venue time zone where known. Team minutes use five players × period lengths, avoiding rounded player-minute totals.</p>${(data.warnings || []).map(w=>`<p role="alert">Collection warning: ${escapeHtml(w)}</p>`).join('')}<div class="game-table-wrap"><table><thead><tr><th>Date / Game</th><th>Team / Opp</th><th>Injury</th><th>Illness</th><th>Other</th><th>Unknown</th><th>Confirmed absent</th><th>Confirmed entered</th><th>Participation unknown</th><th>Team minutes*</th><th>OT</th></tr></thead><tbody>${rows}</tbody></table></div>${details}`;
 }
 </script>
 </body>
@@ -533,16 +530,20 @@ function renderResults(data, team, season) {
 
 @app.route("/")
 def index():
-    return render_template_string(HTML)
+    today = datetime.now()
+    current_season = today.year + (today.month >= 7)
+    return render_template_string(HTML, default_season=current_season, seasons=range(current_season+2, 1946, -1))
 
 @app.route("/run", methods=["POST"])
 def run():
     from nba_espn_collector import collect_dashboard
-    payload = request.get_json(silent=True) or {}
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify(ok=False, output='Send a JSON object with a query mode, team, and season.'), 400
     try:
         result = collect_dashboard(payload.get('mode', 'team'),
                                    str(payload.get('team', 'LAL')).upper(),
-                                   str(payload.get('season', '2025')),
+                                   str(payload.get('season', datetime.now().year + (datetime.now().month >= 7))),
                                    payload.get('max_games', 10),
                                    str(payload.get('game_id', '')).strip())
         return jsonify(ok=True, **result)
