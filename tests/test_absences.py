@@ -58,7 +58,7 @@ class AbsenceTests(unittest.TestCase):
     def test_home_page(self):
         response=app.test_client().get('/')
         self.assertEqual(response.status_code,200)
-        self.assertIn(b'player absence reasons', response.data)
+        self.assertIn(b'injury report and player playing time', response.data)
         self.assertIn(b'escapeHtml(p.reported_absence_reason',response.data)
 
 if __name__=='__main__': unittest.main()

@@ -5,9 +5,14 @@ Then open: http://127.0.0.1:5000
 """
 
 from datetime import datetime
+from threading import Lock, Thread
+from uuid import uuid4
+from time import monotonic
 from flask import Flask, request, jsonify, render_template_string
 
 app = Flask(__name__)
+_jobs = {}
+_jobs_lock = Lock()
 
 HTML = """
 <!DOCTYPE html>
@@ -349,7 +354,7 @@ HTML = """
 <header>
   <div>
     <div class="logo">NBA <span>Data</span> Explorer</div>
-    <div class="subtitle">ESPN game box scores · Reported absences</div>
+    <div class="subtitle">Official NBA injury reports · ESPN playing time</div>
   </div>
 </header>
 
@@ -434,8 +439,8 @@ HTML = """
 
     <div class="legend">
       <div class="section-label">Metrics</div>
-      <div class="legend-item"><span class="legend-num">1</span> Reported absence categories</div>
-      <div class="legend-item"><span class="legend-num">2</span> Minutes played per game</div>
+      <div class="legend-item"><span class="legend-num">1</span> Official report categories and coverage</div>
+      <div class="legend-item"><span class="legend-num">2</span> Player participation and reported minutes</div>
       <div class="legend-item"><span class="legend-num">3</span> Players who entered game</div>
       <div class="legend-item"><span class="legend-num">4</span> Players listed in selected games</div>
     </div>
@@ -468,7 +473,7 @@ function exportAbsences(scope) {
   const anchor = document.createElement('a');
   anchor.href = url;
   const year = loadedExport.games[0]?.season_end_year || context.season;
-  anchor.download = `nba_${context.team}_${year}_${scope === 'injury' ? 'reported_injuries' : 'reported_absences'}.csv`;
+  anchor.download = `nba_${context.team}_${year}_${scope === 'injury' ? 'official_injury_records' : scope === 'reports' ? 'official_report_records' : scope === 'playing' ? 'player_playing_time' : 'boxscore_absences'}.csv`;
   document.body.appendChild(anchor); anchor.click(); anchor.remove();
   setTimeout(() => URL.revokeObjectURL(url),1000);
 }
@@ -510,12 +515,23 @@ async function runQuery() {
   const payload = { mode: currentMode, team, season, max_games: maxGames, game_id: gameId };
 
   try {
-    const resp = await fetch('/run', {
+    const resp = await fetch('/api/query', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    const data = await resp.json();
+    const started = await resp.json();
+    if (!resp.ok) throw new Error(started.output || 'Unable to start query');
+    let state;
+    do {
+      await new Promise(resolve => setTimeout(resolve,1000));
+      const poll = await fetch('/api/jobs/' + started.job_id);
+      state = await poll.json();
+      if (!poll.ok) throw new Error(state.output || 'Query expired; please run it again.');
+      document.getElementById('statusText').textContent = 'Loading game data and official NBA injury reports…';
+    } while (state.status === 'running');
+    const data = state.data;
+
 
     document.getElementById('statusDot').className = data.ok ? 'dot done' : 'dot error';
     document.getElementById('statusText').textContent = data.ok ? 'Done' : 'Error';
@@ -547,14 +563,21 @@ function renderResults(data, team, season, teamName) {
   const games = data.mode === 'game' ? [{...data.metrics, game_id:data.game_id}] : data.games;
   loadedExport = {games, context:{team, teamName, season, requestedGames:data.requested_games || games.length}};
   const injuryRows = NBAInjuryExport.rows(games,loadedExport.context,'injury');
+  const reportRows = NBAInjuryExport.rows(games,loadedExport.context,'reports');
   const absenceRows = NBAInjuryExport.rows(games,loadedExport.context,'all');
-  const exportButtons = `<div class="export-actions"><button data-export onclick="exportAbsences('injury')" ${injuryRows.length ? '' : 'disabled'}>Export injuries CSV (${injuryRows.length})</button><button data-export onclick="exportAbsences('all')" ${absenceRows.length ? '' : 'disabled'}>Export all absence records CSV (${absenceRows.length})</button></div><p class="hint">Exports contain only the loaded games and retain each player’s source-reported name and reason. Change the game sample to load more records.</p>`;
+  const playingRows = NBAInjuryExport.rows(games,loadedExport.context,'playing');
+  const exportButtons = `<div class="export-actions"><button data-export onclick="exportAbsences('injury')" ${injuryRows.length ? '' : 'disabled'}>Export injuries CSV (${injuryRows.length})</button><button data-export onclick="exportAbsences('reports')" ${reportRows.length ? '' : 'disabled'}>Export all official report records CSV (${reportRows.length})</button><button data-export onclick="exportAbsences('playing')" ${playingRows.length ? '' : 'disabled'}>Export playing time CSV (${playingRows.length})</button><button data-export onclick="exportAbsences('all')" ${absenceRows.length ? '' : 'disabled'}>Export box-score absences CSV (${absenceRows.length})</button></div>`;
+  const covered = games.filter(g=>g.official_report?.status === 'available');
   const categories = ['injury','illness','other','unknown'];
-  const totals = Object.fromEntries(categories.map(c => [c, games.reduce((sum,g) => sum + g.absence_counts[c],0)]));
-  const cards = categories.map(c => `<div class="metric-card"><div class="metric-label">${c.toUpperCase()}</div><div class="metric-value">${totals[c]}</div><div class="metric-sub">partial box-score records</div></div>`).join('');
-  const rows = games.map(g => `<tr><td>${escapeHtml(g.date || g.game_id)}</td><td>${escapeHtml(g.opp || team)}</td>${categories.map(c=>`<td>${g.absence_counts[c]}</td>`).join('')}<td>${g.players_dnp}</td><td>${g.players_entered}</td><td>${g.participation_unknown || 0}</td><td>${g.minutes_played}</td><td>${g.overtime_periods}</td></tr>`).join('');
-  const details = games.map(g => `<details><summary>${escapeHtml(g.date || g.game_id)} — player absence reasons</summary><p><a href="${escapeHtml(g.source_url)}" target="_blank" rel="noopener">Source box score</a></p><table><thead><tr><th>Player</th><th>Category</th><th>Reported reason</th><th>Source minutes</th><th>Source DNP flag</th></tr></thead><tbody>${g.players.filter(p=>p.played !== true).map(p=>`<tr><td>${escapeHtml(p.player)}</td><td>${escapeHtml(p.played === null ? 'Participation unknown' : p.absence_category)}</td><td>${escapeHtml(p.reported_absence_reason || 'Not reported')}</td><td>${escapeHtml(p.reported_minutes ?? 'Not reported')}</td><td>${escapeHtml(p.source_did_not_play ?? 'Not reported')}</td></tr>`).join('') || '<tr><td colspan="5">No nonparticipants listed in source.</td></tr>'}</tbody></table></details>`).join('');
-  out.innerHTML = `<h3>${escapeHtml(games[0]?.team_name || teamName || team)} · Season ending ${escapeHtml(games[0]?.season_end_year || season)}</h3><p role="note" class="coverage-warning">Injury coverage is incomplete: the ESPN box scores omit some injured inactive players. Zero listed injury records does not mean zero injuries. Exports carry this same limitation.</p>${exportButtons}<p>${games.length} completed game(s) collected${data.requested_games ? ' of '+data.requested_games+' requested' : ''}.</p><div class="results-grid">${cards}</div><p>Categories describe source-reported absences, not new injury events or diagnoses. Generic DNP, missing reasons, and ambiguous reasons remain unknown. Unlisted players are not inferred. Repeated absences count once per player per game. Participation-unknown records are excluded from both absence and entered-player totals. Box-score counts do not establish a complete injury registry. Dates use the venue time zone where known. Team minutes use five players × period lengths, avoiding rounded player-minute totals.</p>${(data.warnings || []).map(w=>`<p role="alert">Collection warning: ${escapeHtml(w)}</p>`).join('')}<div class="game-table-wrap"><table><thead><tr><th>Date / Game</th><th>Team / Opp</th><th>Injury</th><th>Illness</th><th>Other</th><th>Unknown</th><th>Confirmed absent</th><th>Confirmed entered</th><th>Participation unknown</th><th>Team minutes*</th><th>OT</th></tr></thead><tbody>${rows}</tbody></table></div>${details}`;
+  const cards = categories.map(c=>`<div class="metric-card"><div class="metric-label">OFFICIAL REPORT · ${c.toUpperCase()}</div><div class="metric-value">${covered.length ? covered.reduce((sum,g)=>sum+g.official_report_counts[c],0) : 'Unavailable'}</div><div class="metric-sub">player-game designations in ${covered.length}/${games.length} available snapshots</div></div>`).join('');
+  const rows = games.map(g=>`<tr><td>${escapeHtml(g.date || g.game_id)}</td><td>${escapeHtml(g.opp || team)}</td><td>${g.official_report_counts?.injury ?? 'Unavailable'}</td><td>${g.official_report_counts?.illness ?? 'Unavailable'}</td><td>${g.official_report?.status === 'available' ? 'Snapshot available' : 'Unavailable'}</td><td>${g.players_dnp}</td><td>${g.players_entered}</td><td>${g.participation_unknown || 0}</td><td>${g.minutes_played}</td><td>${g.overtime_periods}</td></tr>`).join('');
+  const details = games.map(g=> {
+    const report=g.official_report;
+    const official=report?.status === 'available' ? `<p>Report as of ${escapeHtml(report.report_at)} · <a href="${escapeHtml(report.source_url)}" target="_blank" rel="noopener">Official NBA PDF</a></p><p>${escapeHtml(report.note)}</p><table><thead><tr><th>Player full name</th><th>Report status</th><th>Category</th><th>Original reason</th><th>Box-score participation</th></tr></thead><tbody>${report.records.map(r=>`<tr><td>${escapeHtml(r.player_full_name)}</td><td>${escapeHtml(r.reported_status)}</td><td>${escapeHtml(r.category)}</td><td>${escapeHtml(r.reported_reason)}</td><td>${escapeHtml(r.actual_participation)}</td></tr>`).join('') || '<tr><td colspan="5">No players listed for this team in the selected snapshot.</td></tr>'}</tbody></table>` : '<p>Official report unavailable. This does not establish zero injuries.</p>';
+    const players=`<p>Playing time is reported by ESPN, usually rounded to whole minutes. It is not verified minute:second exposure. <a href="${escapeHtml(g.source_url)}" target="_blank" rel="noopener">Box-score source</a></p><table><thead><tr><th>Player full name</th><th>Participation</th><th>Reported minutes</th><th>DNP category</th><th>Reported reason</th></tr></thead><tbody>${g.players.map(p=>`<tr><td>${escapeHtml(p.player)}</td><td>${escapeHtml(p.participation_status)}</td><td>${escapeHtml(p.minutes ?? (p.played === false ? 'DNP' : 'Unknown'))}</td><td>${escapeHtml(p.absence_category || '')}</td><td>${escapeHtml(p.reported_absence_reason || '')}</td></tr>`).join('')}</tbody></table>`;
+    return `<details><summary>${escapeHtml(g.date || g.game_id)} — injury report and player playing time</summary><h4>Official pregame designations</h4>${official}<h4>Player participation and reported minutes</h4>${players}</details>`;
+  }).join('');
+  out.innerHTML = `<h3>${escapeHtml(games[0]?.team_name || teamName || team)} · Season ending ${escapeHtml(games[0]?.season_end_year || season)}</h3><p role="note" class="coverage-warning">Official pregame injury reports available for ${covered.length} of ${games.length} loaded games. Reports are selected pregame snapshots, not every public report or unique injury event. Missing coverage is unavailable, not zero. A reported injury does not establish that a player missed the game.</p>${exportButtons}<p>${games.length} completed game(s) collected${data.requested_games ? ' of '+data.requested_games+' requested' : ''}.</p><div class="results-grid">${cards}</div><p>Report status, actual participation, and playing time are separate. Full names from official reports are preserved, including players omitted from ESPN box scores. Exact name matches link records; unmatched identities remain explicit. Injury totals include report designations for players who may still play. ESPN minutes may be rounded. Team minutes are five players × completed period lengths. Regular season only.</p>${(data.warnings || []).map(w=>`<p role="alert">${escapeHtml(w)}</p>`).join('')}<div class="game-table-wrap"><table><thead><tr><th>Date / Game</th><th>Opponent</th><th>Official injury records</th><th>Official illness records</th><th>Report coverage</th><th>Box-score DNP</th><th>Entered</th><th>Participation unknown</th><th>Team minutes</th><th>OT</th></tr></thead><tbody>${rows}</tbody></table></div>${details}`;
 }
 </script>
 </body>
@@ -567,6 +590,39 @@ def index():
     today = datetime.now()
     current_season = today.year + (today.month >= 7)
     return render_template_string(HTML, default_season=current_season, seasons=range(current_season+2, 1946, -1))
+
+@app.post('/api/query')
+def start_query():
+    payload=request.get_json(silent=True)
+    if not isinstance(payload,dict):return jsonify(output='Send a JSON object.'),400
+    with _jobs_lock:
+        expired=[key for key,value in _jobs.items() if value['status']!='running' and monotonic()-value['created']>3600]
+        for key in expired:del _jobs[key]
+        if sum(v['status']=='running' for v in _jobs.values())>=2:
+            return jsonify(output='Two queries are already running. Please try again shortly.'),429
+        if len(_jobs)>=64:
+            oldest=next((key for key,value in _jobs.items() if value['status']!='running'),None)
+            if oldest:del _jobs[oldest]
+        job_id=uuid4().hex
+        _jobs[job_id]=dict(status='running',created=monotonic())
+    def worker():
+        try:
+            with app.test_request_context('/run',method='POST',json=payload):
+                response=app.make_response(run())
+                data=response.get_json()
+        except Exception:
+            app.logger.exception('Background query failed')
+            data=dict(ok=False,output='Query failed; please retry.')
+        with _jobs_lock:_jobs[job_id].update(status='complete',data=data)
+    Thread(target=worker,daemon=True).start()
+    return jsonify(job_id=job_id),202
+
+@app.get('/api/jobs/<job_id>')
+def query_job(job_id):
+    with _jobs_lock:
+        job=_jobs.get(job_id)
+        if job is None:return jsonify(output='Query expired or the service restarted; please run it again.'),404
+        return jsonify({key:value for key,value in job.items() if key!='created'})
 
 @app.route("/run", methods=["POST"])
 def run():

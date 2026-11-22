@@ -39,13 +39,13 @@ class ESPNTests(unittest.TestCase):
         self.assertIsNone(m['players'][0]['played'])
         self.assertIsNone(m['players'][0]['absence_category'])
     def test_game_api(self):
-        with patch('nba_espn_collector.fetch',return_value=DATA):
+        with patch('nba_espn_collector.fetch',return_value=DATA), patch('nba_official_reports.official_for_game',return_value=dict(status='unavailable',records=[],report_at=None,source_url=None)):
             r=app.test_client().post('/run',json=dict(mode='game',team='LAL',season='2025',game_id='401704628'))
         self.assertEqual(r.status_code,200);self.assertEqual(r.json['metrics']['players_dnp'],3)
     def test_partial_collection(self):
         with patch('nba_espn_collector.schedule',return_value=[{'id':'1'},{'id':'2'}]),patch('nba_espn_collector.game',side_effect=[{'players':[]},ValueError('no boxscore')]):
             result=collect_dashboard('team','LAL','2025',2)
-        self.assertEqual(len(result['games']),1);self.assertEqual(result['requested_games'],2);self.assertEqual(len(result['warnings']),1)
+        self.assertEqual(len(result['games']),1);self.assertEqual(result['requested_games'],2);self.assertEqual(len(result['warnings']),2)
     def test_aliases(self):
         self.assertEqual(normalize('GSW'),'GS');self.assertEqual(normalize('BRK'),'BKN')
     def test_all_dropdown_team_codes(self):

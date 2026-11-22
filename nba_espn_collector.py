@@ -149,13 +149,17 @@ def parse_summary(data, team, event_id):
                 source_url=f'https://www.espn.com/nba/boxscore/_/gameId/{event_id}')
 
 def game(event_id, team):
-    return parse_summary(fetch(f'summary?event={event_id}'),team,event_id)
+    from nba_official_reports import enrich_game
+    data=fetch(f'summary?event={event_id}')
+    return enrich_game(parse_summary(data,team,event_id),data,team)
 
 def participation_warnings(games):
     count = sum(g.get('participation_unknown',0) for g in games)
-    if not count:
-        return []
-    return [f'{count} player-game record(s) have uncertain participation. They are shown separately and excluded from entered-player and absence counts.']
+    warnings=[]
+    if count:warnings.append(f'{count} player-game record(s) have uncertain participation. They are shown separately and excluded from entered-player and absence counts.')
+    unavailable=sum(g.get('official_report',{}).get('status')!='available' for g in games)
+    if unavailable:warnings.append(f'Official injury reports are unavailable for {unavailable} of {len(games)} collected games. Missing report coverage is not zero injuries.')
+    return warnings
 
 
 def collect_dashboard(mode, team, season, max_games=10, game_id=''):
