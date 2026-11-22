@@ -404,9 +404,10 @@ HTML = """
 
     <div class="field">
       <label>Season</label>
-      <input type="number" id="season" min="1947" max="9999" step="1" value="{{ default_season }}" list="season-suggestions" aria-label="Season end year">
-      <datalist id="season-suggestions">{% for year in seasons %}<option value="{{ year }}">{{ year-1 }}–{{ year }}</option>{% endfor %}</datalist>
-      <div class="hint">Season end year: 2027 means 2026–27. Enter any future year; data appears after games are completed.</div>
+      <select id="season" aria-label="Season">
+        {% for year in seasons %}<option value="{{ year }}"{% if year == default_season %} selected{% endif %}>{{ year-1 }}–{{ '%02d'|format(year % 100) }}{% if year > default_season %} (upcoming){% endif %}</option>{% endfor %}
+      </select>
+      <div class="hint">Past seasons are listed below the current season. Upcoming seasons fill in after games are completed; historical coverage varies by source.</div>
     </div>
 
     <div class="field" id="field-maxgames">

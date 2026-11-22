@@ -49,8 +49,18 @@ class AuditFixTests(unittest.TestCase):
             with self.subTest(body=body):self.assertEqual(client.post('/run',json=body).status_code,400)
     def test_future_season_ui(self):
         html=app.test_client().get('/').data.decode()
-        self.assertIn('type="number" id="season"',html)
-        self.assertIn('Enter any future year',html)
+        from bs4 import BeautifulSoup
+        field=BeautifulSoup(html,'html.parser').select_one('select#season')
+        self.assertIsNotNone(field)
+        options=field.select('option')
+        years=[int(option['value']) for option in options]
+        self.assertEqual(years,sorted(years,reverse=True))
+        self.assertEqual(min(years),1947)
+        self.assertIn(2025,years)
+        current=int(field.select_one('option[selected]')['value'])
+        self.assertEqual(max(years),current+2)
+        self.assertTrue(all('upcoming' in option.text for option in options if int(option['value'])>current))
+        self.assertIn('2024–25',field.text)
         self.assertNotIn('{{ default_season }}',html)
     def test_invalid_limits(self):
         for limit in [True,2.5,'abc',0,101]:
