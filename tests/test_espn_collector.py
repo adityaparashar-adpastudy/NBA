@@ -43,6 +43,14 @@ class ESPNTests(unittest.TestCase):
         self.assertEqual(len(result['games']),1);self.assertEqual(result['requested_games'],2);self.assertEqual(len(result['warnings']),1)
     def test_aliases(self):
         self.assertEqual(normalize('GSW'),'GS');self.assertEqual(normalize('BRK'),'BKN')
+    def test_all_dropdown_team_codes(self):
+        import re
+        from nba_dashboard import HTML
+        options = re.search(r'<select id="team">(.*?)</select>', HTML, re.S).group(1)
+        codes = re.findall(r'value="([A-Z]+)"', options)
+        self.assertEqual(len(codes), 30)
+        self.assertEqual(len({normalize(code) for code in codes}), 30)
+        self.assertEqual(normalize('WAS'),'WSH')
     def test_overtime(self):
         d=copy.deepcopy(DATA)
         for c in d['header']['competitions'][0]['competitors']:c['linescores'].append({'displayValue':'12'})

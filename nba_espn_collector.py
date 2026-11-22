@@ -9,7 +9,7 @@ import requests
 from lakers_test import classify_absence
 
 BASE = 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/'
-ALIASES = {'BRK':'BKN','CHO':'CHA','PHO':'PHX','GSW':'GS','NYK':'NY','NOP':'NO','SAS':'SA','UTA':'UTAH'}
+ALIASES = {'WAS':'WSH','BRK':'BKN','CHO':'CHA','PHO':'PHX','GSW':'GS','NYK':'NY','NOP':'NO','SAS':'SA','UTA':'UTAH'}
 EAST = {'ATL','BOS','BKN','CHA','CLE','DET','IND','MIA','NY','ORL','PHI','TOR','WSH'}
 CENTRAL = {'CHI','DAL','HOU','MEM','MIL','MIN','NO','OKC','SA'}
 WEST = {'GS','LAC','LAL','POR','SAC'}
