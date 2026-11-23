@@ -52,7 +52,7 @@ def parse_report(content, source_url):
         headings={}
         for word in words:
             for heading in ('Team','Player','Current','Reason','Matchup','Category','Previous'):
-                if word['text'].split()[0]==heading and word['y']<190:headings[heading]=word
+                if word['text'] in (heading, heading+' Name', heading+' Status') and word['y']<190:headings[heading]=word
         if all(k in headings for k in ('Team','Player','Current','Reason','Matchup')):
             legacy_category = 'Category' in headings
             columns={key:value['x']-2 for key,value in headings.items()}

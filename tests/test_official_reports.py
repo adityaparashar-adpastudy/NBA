@@ -31,6 +31,11 @@ class OfficialTests(unittest.TestCase):
         self.assertEqual(r['records'][0]['player_full_name'],'Jarred Vanderbilt')
         self.assertEqual(r['records'][0]['reported_reason'],'Injury/Illness - Right Foot; Injury Recovery')
         self.assertEqual(r['records'][1]['team_code'],'LAL')
+    def test_team_suspension_does_not_replace_team_column_heading(self):
+        page=Page([(24,145,'10/22/2024'),(201,145,'MIN@LAL'),(265,145,'Los Angeles Lakers'),(426,145,'Butler, Jimmy'),(587,145,'Out'),(667,145,'Team Suspension')])
+        with patch('nba_official_reports.PdfReader',return_value=type('Reader',(),{'pages':[page]})()):r=parse_report(b'pdf','source')
+        self.assertEqual(r['records'][0]['reported_reason'],'Team Suspension')
+        self.assertEqual(r['records'][0]['team_code'],'LAL')
     def test_unrecognized_layout_fails_closed(self):
         with patch('nba_official_reports.PdfReader',return_value=type('Reader',(),{'pages':[Page([])]})()):
             # A valid empty report layout has no player records; game matching remains unavailable.
