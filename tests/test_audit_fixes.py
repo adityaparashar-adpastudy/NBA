@@ -55,7 +55,7 @@ class AuditFixTests(unittest.TestCase):
         options=field.select('option')
         years=[int(option['value']) for option in options]
         self.assertEqual(years,sorted(years,reverse=True))
-        self.assertEqual(min(years),1947)
+        self.assertEqual(min(years),1997)
         self.assertIn(2025,years)
         current=int(field.select_one('option[selected]')['value'])
         self.assertEqual(max(years),current+2)

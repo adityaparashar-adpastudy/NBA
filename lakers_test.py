@@ -46,7 +46,7 @@ def classify_absence(reason):
     # The report section heading is not evidence of two separate conditions.
     text = re.sub(r"^injury\s*/\s*illness\s*[-–:]\s*(?=\S)", "", text)
     injury = bool(re.search(r"\b(injury|injured|sprain(?:ed)?|strain(?:ed)?|fractur(?:e|ed)|broken|bruise(?:d)?|soreness|sore|contusion|concussion|surgery|surgical|torn|tear|tendinitis|tendinopathy|ankle|knee|hamstring|achilles|groin|back|wrist|shoulder|foot|toe|thumb|hip|quad|calf|leg|hand|finger|elbow|heel|acl|mcl|pcl|lcl|oblique|adductor|abductor|neck|rib(?:s)?|sternum|face|rotator cuff|plantar fasci(?:a|itis)|tendonitis|nerves?|sciatic\w*|patello\w*|patellar|tendons?|plantar|retrocalcaneal|corneal|eye|metatarsal\w*|tibia\w*|facet|core|patella\w*|tendonopathy|laceration|disc|disk|lumbar|spinal|spine|post[ -]traumatic)\b", text))
-    illness = bool(re.search(r"\b(illness|ill|flu|influenza|covid(?:-19)?|gastroenteritis|migraine|virus|viral|strep(?: throat)?)\b", text))
+    illness = bool(re.search(r"\b(illness|ill|respiratory|flu|influenza|covid(?:-19)?|gastroenteritis|migraine|virus|viral|strep(?: throat)?)\b", text))
     other = bool(re.search(r"coach[’']?s? decision|\b(personal|rest|suspended|suspension|g league|g-league|assignment|not with team|trade pending)\b", text))
     categories = [name for name, flag in [('injury', injury), ('illness', illness), ('other', other)] if flag]
     return categories[0] if len(categories) == 1 else 'unknown'

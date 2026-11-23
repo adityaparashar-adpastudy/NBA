@@ -1,0 +1,55 @@
+{
+  "retrieved_on": "2026-11-22",
+  "files": [
+    {
+      "file": "2018.pdf",
+      "source_url": "https://ak-static.cms.nba.com/referee/injury/Injury-Report_2018-12-25_01PM.pdf",
+      "sha256": "555f940793566c8504a1fd631b08c2855b000a012aa090688ee8f09dc91bd7f3"
+    },
+    {
+      "file": "2019.pdf",
+      "source_url": "https://ak-static.cms.nba.com/referee/injury/Injury-Report_2019-12-25_01PM.pdf",
+      "sha256": "3273697c09a6b50b2d960b1f56f61b6ff7846881a094d37b239c48f393fab94c"
+    },
+    {
+      "file": "2020.pdf",
+      "source_url": "https://ak-static.cms.nba.com/referee/injury/Injury-Report_2020-12-25_01PM.pdf",
+      "sha256": "04b66d68e7f9ea9afe595fc50467e4780c86709e68559103c21cd3a6e9399096"
+    },
+    {
+      "file": "2021.pdf",
+      "source_url": "https://ak-static.cms.nba.com/referee/injury/Injury-Report_2021-12-25_01PM.pdf",
+      "sha256": "d81e024b5e43c45cd812fb4fa40541a2e643dc8ad21bde625544988a0bf59112"
+    },
+    {
+      "file": "2022.pdf",
+      "source_url": "https://ak-static.cms.nba.com/referee/injury/Injury-Report_2022-12-25_01PM.pdf",
+      "sha256": "d3499a37d33ea023b490b851a06e9316c96f49ceaa7fd9cbd47306ab9391ade6"
+    },
+    {
+      "file": "bkn_1997_161101017.json",
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event=161101017",
+      "sha256": "200bf273f1ede8bf53bd975708ec84be1fc6eb8f6a5f54389f43c4b5272602e2"
+    },
+    {
+      "file": "chi_2013_400277727.json",
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event=400277727",
+      "sha256": "3bad54236606c0b40a5f7fcd19cf1f016407c1eb58f4a8154bb6d2d15be52ec8"
+    },
+    {
+      "file": "mem_1997_161101029.json",
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event=161101029",
+      "sha256": "26dc33cfa8be7be2ee78f93f43a322a3707445cd2807511585c4b21ad5fea87a"
+    },
+    {
+      "file": "no_1997_161102003.json",
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event=161102003",
+      "sha256": "3d9564cd41901e3ee04c4eee429530c436e7189a1483f6baff22b49fc031fcba"
+    },
+    {
+      "file": "okc_2002_211030023.json",
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event=211030023",
+      "sha256": "026e544ee31551a2330b9506bb387dfa79ff8c5a19952159439d8c635e8d5e58"
+    }
+  ]
+}

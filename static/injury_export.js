@@ -2,7 +2,7 @@
   'use strict';
   const columns=['season','season_end_year','team','team_code','player_full_name','player_id','game_date','date_timezone','game_id','opponent','game_result','record_type','absence_category','reported_status','reported_absence_reason','participation_status','reported_minutes','playing_time_minutes','minutes_precision','source_did_not_play','report_at','identity_join_method','source','source_url','playing_time_source_url','loaded_games','requested_games','official_report_games_available','coverage_note','exported_at_utc'];
   const coverage='Selected available official pregame snapshots only; later updates and unreported injuries may exist. Records are player-game designations, not unique injury events. Missing reports are not zero injuries.';
-  const boxCoverage='Partial ESPN box-score data; inactive injured players may be omitted. Minutes may be rounded, and are not verified exact second-level exposure.';
+  const boxCoverage='Partial ESPN box-score data; inactive injured players may be omitted. Unknown participation is excluded from recorded DNP totals; zero recorded DNP does not establish zero absences. Minutes may be rounded, and are not verified exact second-level exposure.';
   function cell(value){let text=String(value??'');if(/^[\s]*[=+\-@]/.test(text)||/^[\t\r]/.test(text))text="'"+text;return '"'+text.replace(/"/g,'""')+'"';}
   function playingTime(raw,played){
     if(played===false)return {minutes:0,precision:'did_not_play'};

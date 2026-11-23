@@ -416,7 +416,7 @@ HTML = """
       <select id="season" aria-label="Season">
         {% for year in seasons %}<option value="{{ year }}"{% if year == default_season %} selected{% endif %}>{{ year-1 }}–{{ '%02d'|format(year % 100) }}{% if year > default_season %} (upcoming){% endif %}</option>{% endfor %}
       </select>
-      <div class="hint">Past seasons are listed below the current season. Upcoming seasons fill in after games are completed; historical coverage varies by source.</div>
+      <div class="hint">Past seasons are listed below the current season. Upcoming seasons fill in after games are completed; ESPN game schedules are offered from 1996–97; earlier seasons are excluded because coverage has not been verified. Some franchises did not yet exist, and historical participation and DNP reasons may be incomplete.</div>
     </div>
 
     <div class="field" id="field-maxgames">
@@ -520,13 +520,13 @@ async function runQuery() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    const started = await resp.json();
+    const started = await readQueryResponse(resp);
     if (!resp.ok) throw new Error(started.output || 'Unable to start query');
     let state;
     do {
       await new Promise(resolve => setTimeout(resolve,1000));
       const poll = await fetch('/api/jobs/' + started.job_id);
-      state = await poll.json();
+      state = await readQueryResponse(poll);
       if (!poll.ok) throw new Error(state.output || 'Query expired; please run it again.');
       document.getElementById('statusText').textContent = 'Loading game data and official NBA injury reports…';
     } while (state.status === 'running');
@@ -551,6 +551,12 @@ async function runQuery() {
   btn.textContent = 'RUN QUERY';
 }
 
+async function readQueryResponse(response) {
+  if ([429,502,503,504].includes(response.status)) throw new Error('The server is busy or temporarily unreachable. Please wait a minute and run the query again.');
+  try { return await response.json(); }
+  catch (_) { throw new Error('The server returned an unreadable response. Please retry the query.'); }
+}
+
 function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 }
@@ -570,14 +576,14 @@ function renderResults(data, team, season, teamName) {
   const covered = games.filter(g=>g.official_report?.status === 'available');
   const categories = ['injury','illness','other','unknown'];
   const cards = categories.map(c=>`<div class="metric-card"><div class="metric-label">OFFICIAL REPORT · ${c.toUpperCase()}</div><div class="metric-value">${covered.length ? covered.reduce((sum,g)=>sum+g.official_report_counts[c],0) : 'Unavailable'}</div><div class="metric-sub">player-game designations in ${covered.length}/${games.length} available snapshots</div></div>`).join('');
-  const rows = games.map(g=>`<tr><td>${escapeHtml(g.date || g.game_id)}</td><td>${escapeHtml(g.opp || team)}</td><td>${g.official_report_counts?.injury ?? 'Unavailable'}</td><td>${g.official_report_counts?.illness ?? 'Unavailable'}</td><td>${g.official_report?.status === 'available' ? 'Snapshot available' : 'Unavailable'}</td><td>${g.players_dnp}</td><td>${g.players_entered}</td><td>${g.participation_unknown || 0}</td><td>${g.minutes_played}</td><td>${g.overtime_periods}</td></tr>`).join('');
+  const rows = games.map(g=>`<tr><td>${escapeHtml(g.date || g.game_id)}</td><td>${escapeHtml(g.opp || team)}</td><td>${g.official_report_counts?.injury ?? 'Unavailable'}</td><td>${g.official_report_counts?.illness ?? 'Unavailable'}</td><td>${g.official_report?.status === 'available' ? 'Snapshot available' : escapeHtml(g.official_report?.retrieval_status === 'fetch_failed' ? 'Fetch failed — retry' : g.official_report?.retrieval_status === 'parse_failed' ? 'Layout unverified' : 'No matching snapshot found')}</td><td>${g.dnp_coverage === 'incomplete' ? (g.players_dnp ? g.players_dnp+' recorded; incomplete' : 'Not fully recorded') : g.players_dnp}</td><td>${g.players_entered}</td><td>${g.participation_unknown || 0}</td><td>${g.minutes_played}</td><td>${g.overtime_periods}</td></tr>`).join('');
   const details = games.map(g=> {
     const report=g.official_report;
-    const official=report?.status === 'available' ? `<p>Report as of ${escapeHtml(report.report_at)} · <a href="${escapeHtml(report.source_url)}" target="_blank" rel="noopener">Official NBA PDF</a></p><p>${escapeHtml(report.note)}</p><table><thead><tr><th>Player full name</th><th>Report status</th><th>Category</th><th>Original reason</th><th>Box-score participation</th></tr></thead><tbody>${report.records.map(r=>`<tr><td>${escapeHtml(r.player_full_name)}</td><td>${escapeHtml(r.reported_status)}</td><td>${escapeHtml(r.category)}</td><td>${escapeHtml(r.reported_reason)}</td><td>${escapeHtml(r.actual_participation)}</td></tr>`).join('') || '<tr><td colspan="5">No players listed for this team in the selected snapshot.</td></tr>'}</tbody></table>` : '<p>Official report unavailable. This does not establish zero injuries.</p>';
+    const official=report?.status === 'available' ? `<p>Report as of ${escapeHtml(report.report_at)} · <a href="${escapeHtml(report.source_url)}" target="_blank" rel="noopener">Official NBA PDF</a></p><p>${escapeHtml(report.note)}</p><table><thead><tr><th>Player full name</th><th>Report status</th><th>Category</th><th>Original reason</th><th>Box-score participation</th></tr></thead><tbody>${report.records.map(r=>`<tr><td>${escapeHtml(r.player_full_name)}</td><td>${escapeHtml(r.reported_status)}</td><td>${escapeHtml(r.category)}</td><td>${escapeHtml(r.reported_reason)}</td><td>${escapeHtml(r.actual_participation)}</td></tr>`).join('') || '<tr><td colspan="5">No players listed for this team in the selected snapshot.</td></tr>'}</tbody></table>` : `<p>${escapeHtml(report?.note || 'Official report unavailable. This does not establish zero injuries.')}</p>`;
     const players=`<p>Playing time is reported by ESPN, usually rounded to whole minutes. It is not verified minute:second exposure. <a href="${escapeHtml(g.source_url)}" target="_blank" rel="noopener">Box-score source</a></p><table><thead><tr><th>Player full name</th><th>Participation</th><th>Reported minutes</th><th>DNP category</th><th>Reported reason</th></tr></thead><tbody>${g.players.map(p=>`<tr><td>${escapeHtml(p.player)}</td><td>${escapeHtml(p.participation_status)}</td><td>${escapeHtml(p.minutes ?? (p.played === false ? 'DNP' : 'Unknown'))}</td><td>${escapeHtml(p.absence_category || '')}</td><td>${escapeHtml(p.reported_absence_reason || '')}</td></tr>`).join('')}</tbody></table>`;
     return `<details><summary>${escapeHtml(g.date || g.game_id)} — injury report and player playing time</summary><h4>Official pregame designations</h4>${official}<h4>Player participation and reported minutes</h4>${players}</details>`;
   }).join('');
-  out.innerHTML = `<h3>${escapeHtml(games[0]?.team_name || teamName || team)} · Season ending ${escapeHtml(games[0]?.season_end_year || season)}</h3><p role="note" class="coverage-warning">Official pregame injury reports available for ${covered.length} of ${games.length} loaded games. Reports are selected pregame snapshots, not every public report or unique injury event. ${games.length-covered.length} loaded game(s) have no available official report. Missing coverage is unavailable, not zero. A reported injury does not establish that a player missed the game.</p>${exportButtons}<p>${games.length} completed game(s) collected${data.requested_games ? ' of '+data.requested_games+' requested' : ''}. <strong>${data.missing_games ?? Math.max(0,(data.requested_games || games.length)-games.length)} missing game(s) in the requested sample.</strong>${data.scheduled_completed_games ? ' '+data.scheduled_completed_games+' completed regular-season games returned by the schedule.' : ''}</p><div class="results-grid">${cards}</div><p>Report status, actual participation, and playing time are separate. Full names from official reports are preserved, including players omitted from ESPN box scores. Exact name matches link records; unmatched identities remain explicit. Injury totals include report designations for players who may still play. ESPN minutes may be rounded. Team minutes are five players × completed period lengths. Regular season only.</p>${(data.warnings || []).map(w=>`<p role="alert">${escapeHtml(w)}</p>`).join('')}<div class="game-table-wrap"><table><thead><tr><th>Date / Game</th><th>Opponent</th><th>Official injury records</th><th>Official illness records</th><th>Report coverage</th><th>Box-score DNP</th><th>Entered</th><th>Participation unknown</th><th>Team minutes</th><th>OT</th></tr></thead><tbody>${rows}</tbody></table></div>${details}`;
+  out.innerHTML = `<h3>${escapeHtml(games[0]?.team_name || teamName || team)} · Season ending ${escapeHtml(games[0]?.season_end_year || season)}</h3><p role="note" class="coverage-warning">Official pregame injury reports available for ${covered.length} of ${games.length} loaded games. Reports are selected pregame snapshots, not every public report or unique injury event. ${games.length-covered.length} loaded game(s) have no available official report. Missing coverage is unavailable, not zero. A reported injury does not establish that a player missed the game.</p>${exportButtons}<p>${games.length} completed game(s) collected${data.requested_games ? ' of '+data.requested_games+' requested' : ''}. <strong>${data.missing_games ?? Math.max(0,(data.requested_games || games.length)-games.length)} missing game(s) in the requested sample.</strong>${data.scheduled_completed_games ? ' '+data.scheduled_completed_games+' completed regular-season games returned by the schedule.' : ''}</p><div class="results-grid">${cards}</div><p>Report status, actual participation, and playing time are separate. Where participation is unknown, a zero recorded DNP count does not establish zero absences. Fetch failures are distinguished from a search that found no matching snapshot; neither proves that no report was published. Full names from official reports are preserved, including players omitted from ESPN box scores. Exact name matches link records; unmatched identities remain explicit. Injury totals include report designations for players who may still play. ESPN minutes may be rounded. Team minutes are five players × completed period lengths. Regular season only.</p>${(data.warnings || []).map(w=>`<p role="alert">${escapeHtml(w)}</p>`).join('')}<div class="game-table-wrap"><table><thead><tr><th>Date / Game</th><th>Opponent</th><th>Official injury records</th><th>Official illness records</th><th>Report coverage</th><th>Box-score DNP</th><th>Entered</th><th>Participation unknown</th><th>Team minutes</th><th>OT</th></tr></thead><tbody>${rows}</tbody></table></div>${details}`;
 }
 </script>
 </body>
@@ -589,7 +595,7 @@ function renderResults(data, team, season, teamName) {
 def index():
     today = datetime.now()
     current_season = today.year + (today.month >= 7)
-    return render_template_string(HTML, default_season=current_season, seasons=range(current_season+2, 1946, -1))
+    return render_template_string(HTML, default_season=current_season, seasons=range(current_season+2, 1996, -1))
 
 @app.post('/api/query')
 def start_query():

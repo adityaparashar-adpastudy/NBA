@@ -4,7 +4,7 @@ from functools import lru_cache
 from io import BytesIO
 import re
 import unicodedata
-from time import monotonic
+from time import monotonic, sleep
 from zoneinfo import ZoneInfo
 import requests
 from pypdf import PdfReader
@@ -17,6 +17,9 @@ STATUSES = {'Out','Questionable','Doubtful','Probable','Available'}
 
 def clean(text):
     return re.sub(r'\s+', ' ', text).strip().replace('Two- Way','Two-Way')
+
+def clean_name(text):
+    return re.sub(r'(?<=\w)-\s+(?=\w)', '-', clean(text))
 
 def name_key(name):
     text = unicodedata.normalize('NFKD', name or '')
@@ -36,7 +39,9 @@ def parse_report(content, source_url):
     timestamp = datetime.strptime(f'{match[1]} {match[2]} {match[3].upper()}',date_format+' %I:%M %p').replace(tzinfo=ET)
     anchors, reason_lines = [], []
     columns = None
+    legacy_category = False
     for page_no,page in enumerate(reader.pages):
+        if getattr(page, 'rotation', 0):page.transfer_rotation_to_content()
         words=[]
         def visit(text,cm,tm,font,size):
             if text.strip():
@@ -46,9 +51,10 @@ def parse_report(content, source_url):
         page.extract_text(visitor_text=visit)
         headings={}
         for word in words:
-            for heading in ('Team','Player','Current','Reason','Matchup'):
+            for heading in ('Team','Player','Current','Reason','Matchup','Category','Previous'):
                 if word['text'].split()[0]==heading and word['y']<190:headings[heading]=word
-        if len(headings)==5:
+        if all(k in headings for k in ('Team','Player','Current','Reason','Matchup')):
+            legacy_category = 'Category' in headings
             columns={key:value['x']-2 for key,value in headings.items()}
             top=max(value['y'] for value in headings.values())+3
         elif columns:
@@ -57,25 +63,24 @@ def parse_report(content, source_url):
         lines={}
         for word in words:
             if not top<word['y']<float(page.mediabox.height)-35:continue
-            key=round(word['y']/2)*2
+            key=round(word['y'], 1)
             lines.setdefault(key,[]).append(word)
         page_anchors=[]
         for y,words_in_line in sorted(lines.items()):
-            fields={'date':[],'matchup':[],'team':[],'name':[],'status':[],'reason':[]}
+            fields={'date':[],'matchup':[],'team':[],'name':[],'status':[],'reason':[],'category':[]}
             for w in sorted(words_in_line,key=lambda w:w['x']):
                 x=w['x']
-                if x>=columns['Reason']:key='reason'
-                elif x>=columns['Current']:key='status'
-                elif x>=columns['Player']:key='name'
-                elif x>=columns['Team']:key='team'
-                elif x>=columns['Matchup']:key='matchup'
+                boundaries={'Reason':'reason','Current':'status','Player':'name','Team':'team','Matchup':'matchup','Category':'category','Previous':'previous'}
+                column=next((k for k in sorted(columns,key=columns.get,reverse=True) if x>=columns[k]),None)
+                if column=='Previous':continue
+                if column:key=boundaries[column]
                 elif re.fullmatch(r'\d{2}/\d{2}/\d{4}',w['text']):key='date'
                 else:continue
                 fields[key].append(w['text'])
             fields={k:clean(' '.join(v)) for k,v in fields.items()}
             position=page_no*10000+y
             if fields['status'] in STATUSES or fields['reason']=='NOT YET SUBMITTED':
-                page_anchors.append(dict(position=position,page=page_no,y=y,height=float(page.mediabox.height),**fields))
+                page_anchors.append(dict(legacy_category=legacy_category,position=position,page=page_no,y=y,height=float(page.mediabox.height),**fields))
             if fields['reason'] and fields['reason']!='NOT YET SUBMITTED':
                 reason_lines.append(dict(position=position,page=page_no,y=y,text=fields['reason']))
         anchors.extend(page_anchors)
@@ -115,7 +120,7 @@ def parse_report(content, source_url):
         assigned[id(target)].extend(block['lines'])
     for a in actual:
         a['resolved_reason']=clean(' '.join(assigned[id(a)]))
-        if not a['resolved_reason'] or not (REASON_PREFIX.match(a['resolved_reason']) or a['resolved_reason']=='-'):
+        if not a['resolved_reason'] or not (a['legacy_category'] or REASON_PREFIX.match(a['resolved_reason']) or a['resolved_reason']=='-' or a['resolved_reason']=='Health and Safety Protocols'):
             raise ValueError('NBA report rows do not reconcile: missing or unrecognized reason')
     records=[];not_submitted=[];matchups=set();current_date=current_matchup=current_team=''
     for a in anchors:
@@ -128,12 +133,13 @@ def parse_report(content, source_url):
         if a['reason']=='NOT YET SUBMITTED':
             not_submitted.append((current_date,current_matchup,TEAM_CODES[current_team]));continue
         reason=a['resolved_reason']
+        if a['legacy_category'] and a['category']:reason=a['category']+' - '+reason
         if ',' not in a['name']:raise ValueError('NBA report player name is incomplete')
         last,first=a['name'].split(',',1)
-        full_name=clean(first+' '+last)
-        records.append(dict(player_full_name=full_name,source_player_name=a['name'],team= current_team,
+        full_name=clean_name(first+' '+last)
+        records.append(dict(player_full_name=full_name,source_player_name=clean_name(a['name']),source_player_name_raw=a['name'],team= current_team,
                             team_code=TEAM_CODES[current_team],game_date=current_date,matchup=current_matchup,
-                            reported_status=a['status'],reported_reason=reason,category=report_category(reason),
+                            source_category=a['category'] or None,source_reason=a['resolved_reason'],reported_status=a['status'],reported_reason=reason,category=report_category(reason),
                             report_at=timestamp.isoformat(),source_url=source_url))
     return dict(report_at=timestamp.isoformat(),source_url=source_url,records=records,
                 not_submitted=not_submitted,matchups=sorted(matchups))
@@ -161,13 +167,19 @@ def snapshot_candidates(tipoff):
 
 @lru_cache(maxsize=512)
 def _fetch_report(url, bucket):
-    try:
-        response=requests.get(url,timeout=(3,8));response.raise_for_status()
-        if not response.content.startswith(b'%PDF'):return None
-        return parse_report(response.content,url)
-    except Exception:
-        # Missing objects, transport errors, and unrecognized layouts are unavailable.
-        return None
+    for attempt in range(3):
+        try:
+            response=requests.get(url,timeout=(3,8))
+            if response.status_code in (403,404):return None
+            response.raise_for_status()
+            if not response.content.startswith(b'%PDF'):raise ValueError('Source returned non-PDF content')
+            try:return parse_report(response.content,url)
+            except Exception as exc:raise ValueError('Official PDF layout or content could not be verified') from exc
+        except (requests.ConnectionError, requests.Timeout, requests.HTTPError) as exc:
+            code=exc.response.status_code if exc.response is not None else None
+            if attempt==2 or (code is not None and code!=429 and code<500):raise
+            sleep(.25 * 2**attempt)
+    # Exceptions are deliberately not cached; a refresh can recover immediately.
 
 def fetch_report(url):
     return _fetch_report(url,int(monotonic()//300))
@@ -177,10 +189,15 @@ def official_for_game(tipoff_iso, team, matchup):
     tipoff=datetime.fromisoformat(tipoff_iso.replace('Z','+00:00'))
     day=tipoff.astimezone(ET).date().isoformat()
     deadline=monotonic()+25
+    failures=set()
     for url in snapshot_candidates(tipoff):
-        if monotonic()>deadline:break
+        if monotonic()>deadline:
+            failures.add('search_incomplete');break
         try:report=fetch_report(url)
-        except (requests.RequestException,ValueError):continue
+        except requests.RequestException:
+            failures.add('fetch_failed');continue
+        except ValueError:
+            failures.add('parse_failed');continue
         if report is None:continue
         asof=datetime.fromisoformat(report['report_at'])
         if not tipoff-timedelta(hours=36)<asof<tipoff:continue
@@ -190,7 +207,8 @@ def official_for_game(tipoff_iso, team, matchup):
         return dict(status='available',report_at=report['report_at'],source_url=url,records=records,
                     note='Selected available pregame snapshot; later updates or unreported injuries may exist. Not a new-injury count.')
     return dict(status='unavailable',records=[],report_at=None,source_url=None,
-                note='No matching submitted official pregame report could be retrieved and parsed. Injury counts are unavailable, not zero.')
+                retrieval_status=('fetch_failed' if 'fetch_failed' in failures else 'parse_failed' if 'parse_failed' in failures else 'search_incomplete' if failures else 'no_matching_snapshot'),
+                note=('Report retrieval failed; retry this query. ' if 'fetch_failed' in failures else 'Report layout could not be verified. ' if 'parse_failed' in failures else 'The bounded snapshot search found no matching submitted report; this does not prove none was published. ')+'Injury counts are unavailable, not zero.')
 
 
 def enrich_game(metrics, data, team):

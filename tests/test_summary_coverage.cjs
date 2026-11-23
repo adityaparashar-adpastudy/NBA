@@ -17,3 +17,14 @@ assert(out.innerHTML.includes('0 missing game(s) in the requested sample.'));
 assert(out.innerHTML.includes('0 loaded game(s) have no available official report.'));
 assert(out.innerHTML.includes('<div class="metric-value">0</div>'));
 console.log('Summary missing-game and report-coverage checks passed');
+context.renderResults({mode:'team',games:[{...game,players_dnp:0,dnp_coverage:'incomplete',official_report:{status:'unavailable',retrieval_status:'fetch_failed',records:[]}}]},'CHI',2013,'Chicago Bulls');
+assert(out.innerHTML.includes('Not fully recorded'));
+assert(out.innerHTML.includes('Fetch failed — retry'));
+assert(out.innerHTML.includes('zero recorded DNP count does not establish zero absences'));
+const errorScript=source.slice(source.indexOf('async function readQueryResponse'),source.indexOf('function escapeHtml'));
+vm.runInContext(errorScript,context);
+(async()=>{
+ for(const status of [429,502,503,504]) await assert.rejects(context.readQueryResponse({status}),/server is busy/);
+ await assert.rejects(context.readQueryResponse({status:200,json:async()=>{throw new Error('html')}}),/unreadable response/);
+ console.log('Unknown participation and busy-server messages passed');
+})().catch(error=>{console.error(error);process.exitCode=1});
